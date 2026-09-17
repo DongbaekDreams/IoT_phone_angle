@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/settingsToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg"
+        app:navigationIcon="@drawable/ic_back"
+        app:title="@string/settings_title"
+        app:titleTextColor="@color/ink" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="22dp"
+            android:paddingBottom="32dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:letterSpacing="0.08"
+                android:text="@string/settings_display_section"
+                android:textAllCaps="true"
+                android:textColor="@color/faint"
+                android:textSize="11sp" />
+
+            <include
+                android:id="@+id/settingSmooth"
+                layout="@layout/view_setting_switch" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/line" />
+
+            <include
+                android:id="@+id/settingDeadZone"
+                layout="@layout/view_setting_switch" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/line" />
+
+            <include
+                android:id="@+id/settingSparklines"
+                layout="@layout/view_setting_switch" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/line" />
+
+            <include
+                android:id="@+id/settingHints"
+                layout="@layout/view_setting_switch" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/line" />
+
+            <include
+                android:id="@+id/settingDetails"
+                layout="@layout/view_setting_switch" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:letterSpacing="0.08"
+                android:text="@string/settings_behavior_section"
+                android:textAllCaps="true"
+                android:textColor="@color/faint"
+                android:textSize="11sp" />
+
+            <include
+                android:id="@+id/settingHaptic"
+                layout="@layout/view_setting_switch" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/line" />
+
+            <include
+                android:id="@+id/settingKeepAwake"
+                layout="@layout/view_setting_switch" />
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
