@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_collect"
+        android:icon="@drawable/ic_nav_collect"
+        android:title="@string/nav_collect" />
+    <item
+        android:id="@+id/nav_model"
+        android:icon="@drawable/ic_nav_model"
+        android:title="@string/nav_model" />
+    <item
+        android:id="@+id/nav_federate"
+        android:icon="@drawable/ic_nav_federate"
+        android:title="@string/nav_federate" />
+    <item
+        android:id="@+id/nav_compare"
+        android:icon="@drawable/ic_nav_compare"
+        android:title="@string/nav_compare" />
+</menu>

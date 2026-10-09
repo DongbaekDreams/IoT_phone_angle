@@ -1,70 +1,50 @@
 #!/usr/bin/env python3
-"""Minimal FedAvg server for CSC 8223 phone-pose models.
+"""LAN FedAvg server for CSC 8223 phone-pose models (stdlib only).
+
+State lives in plain files under the repo (federation/ and results/), using the same layout
+as the GitHub transport. After a session you can `git add federation results && git commit`.
 
 Endpoints:
-  GET  /health
-  GET  /global          -> current global model JSON (or empty)
-  POST /update          -> client model update (weights only)
-  POST /aggregate       -> FedAvg pending updates -> new global
-  POST /reset           -> clear pending + global
+  GET  /health      liveness
+  GET  /status      {latestGlobalRound, pendingRound, pendingClients}
+  GET  /global      latest global model, or {"empty": true}
+  GET  /baselines   every client's local-only baseline
+  POST /update      a client's round update (weights only)
+  POST /aggregate   FedAvg the pending round (idempotent)
+  POST /baseline    a client's local-only baseline
+  POST /results     evaluation metrics
+  POST /reset       archive federation/ to federation.old-<timestamp>/ and start at round 0
 
 Run:
-  python server/fedavg_server.py
-  # listens on 0.0.0.0:8080
+  python server/fedavg_server.py [--port 8080] [--root <repo root>]
 """
 
 from __future__ import annotations
 
+import argparse
 import json
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-HOST = "0.0.0.0"
-PORT = 8080
+import fedlib
 
-pending: dict[str, dict[str, Any]] = {}
-global_model: dict[str, Any] | None = None
-
-
-def fedavg(updates: list[dict[str, Any]]) -> dict[str, Any]:
-    if not updates:
-        raise ValueError("no updates")
-    total_n = sum(max(1, int(u.get("sampleCount", 1))) for u in updates)
-    first = updates[0]
-    classes = first["classes"]
-    feature_dim = int(first["featureDim"])
-    num_classes = len(classes)
-    weights = [[0.0] * feature_dim for _ in range(num_classes)]
-    bias = [0.0] * num_classes
-    for u in updates:
-        n = max(1, int(u.get("sampleCount", 1)))
-        w = n / total_n
-        for c in range(num_classes):
-            bias[c] += w * float(u["bias"][c])
-            for f in range(feature_dim):
-                weights[c][f] += w * float(u["weights"][c][f])
-    return {
-        "featureDim": feature_dim,
-        "classes": classes,
-        "bias": bias,
-        "weights": weights,
-        "sampleCount": total_n,
-        "clientId": "global",
-        "sensorConfig": first.get("sensorConfig", "all"),
-    }
+LOCK = threading.Lock()
+ROOT = Path(__file__).resolve().parent.parent
 
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: Any) -> None:
         print("[%s] %s" % (self.log_date_time_string(), fmt % args))
 
-    def _send(self, code: int, payload: dict[str, Any] | list[Any] | None = None) -> None:
+    def _send(self, code: int, payload: Any = None) -> None:
         body = b"" if payload is None else json.dumps(payload).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         if body:
             self.wfile.write(body)
@@ -72,78 +52,67 @@ class Handler(BaseHTTPRequestHandler):
     def _read_json(self) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length) if length else b"{}"
-        if not raw:
-            return {}
-        return json.loads(raw.decode("utf-8"))
-
-    def do_OPTIONS(self) -> None:  # noqa: N802
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
+        return json.loads(raw.decode("utf-8") or "{}")
 
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
-        if path == "/health":
-            self._send(
-                200,
-                {
-                    "ok": True,
-                    "pendingClients": len(pending),
-                    "hasGlobal": global_model is not None,
-                },
-            )
-        elif path == "/global":
-            if global_model is None:
-                self._send(200, {"empty": True})
-            else:
-                self._send(200, global_model)
-        else:
-            self._send(404, {"error": "not found"})
+        try:
+            with LOCK:
+                if path == "/health":
+                    self._send(200, {"ok": True})
+                elif path == "/status":
+                    self._send(200, fedlib.status(ROOT))
+                elif path == "/global":
+                    latest = fedlib.latest_round(ROOT)
+                    data = fedlib.read_json(fedlib.global_path(ROOT, latest)) if latest else None
+                    self._send(200, data if data else {"empty": True})
+                elif path == "/baselines":
+                    self._send(200, {"baselines": fedlib.list_baselines(ROOT)})
+                else:
+                    self._send(404, {"error": "not found"})
+        except fedlib.FedError as exc:
+            self._send(exc.status, {"error": str(exc)})
 
     def do_POST(self) -> None:  # noqa: N802
-        global global_model, pending
         path = urlparse(self.path).path
-        if path == "/update":
+        try:
             data = self._read_json()
-            client_id = str(data.get("clientId", "unknown"))
-            required = ("weights", "bias", "classes", "featureDim")
-            if any(k not in data for k in required):
-                self._send(400, {"error": f"missing fields, need {required}"})
-                return
-            pending[client_id] = data
-            self._send(
-                200,
-                {
-                    "message": "update accepted",
-                    "pendingClients": len(pending),
-                    "clients": list(pending.keys()),
-                },
-            )
-        elif path == "/aggregate":
-            if not pending:
-                self._send(400, {"error": "no pending updates"})
-                return
-            try:
-                global_model = fedavg(list(pending.values()))
-            except Exception as exc:  # noqa: BLE001
-                self._send(400, {"error": str(exc)})
-                return
-            pending = {}
-            self._send(200, global_model)
-        elif path == "/reset":
-            pending = {}
-            global_model = None
-            self._send(200, {"message": "reset"})
-        else:
-            self._send(404, {"error": "not found"})
+            with LOCK:
+                if path == "/update":
+                    self._send(200, fedlib.submit_update(ROOT, data))
+                elif path == "/aggregate":
+                    self._send(200, fedlib.aggregate_round(ROOT))
+                elif path == "/baseline":
+                    fedlib.submit_baseline(ROOT, data)
+                    self._send(200, {"message": "baseline stored"})
+                elif path == "/results":
+                    fedlib.submit_result(ROOT, data)
+                    self._send(200, {"message": "results stored"})
+                elif path == "/reset":
+                    src = ROOT / "federation"
+                    if src.exists():
+                        src.rename(ROOT / f"federation.old-{int(time.time())}")
+                    self._send(200, {"message": "federation archived; round is 0"})
+                else:
+                    self._send(404, {"error": "not found"})
+        except fedlib.FedError as exc:
+            self._send(exc.status, {"error": str(exc)})
+        except (KeyError, ValueError, json.JSONDecodeError) as exc:
+            self._send(400, {"error": f"bad payload: {exc}"})
 
 
 def main() -> None:
-    server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"FedAvg server listening on http://{HOST}:{PORT}")
-    print("Endpoints: GET /health /global  POST /update /aggregate /reset")
+    global ROOT
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=8080)
+    parser.add_argument("--root", type=Path, default=ROOT, help="repo root that holds federation/ and results/")
+    args = parser.parse_args()
+    ROOT = args.root.resolve()
+
+    server = ThreadingHTTPServer((args.host, args.port), Handler)
+    print(f"FedAvg server on http://{args.host}:{args.port}  (data: {ROOT})")
+    print("Phones on the same Wi-Fi should use http://<this-PC-LAN-IP>:%d" % args.port)
     server.serve_forever()
 
 

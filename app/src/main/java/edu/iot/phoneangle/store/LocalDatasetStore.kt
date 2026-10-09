@@ -45,6 +45,10 @@ class LocalDatasetStore(context: Context) {
         return counts
     }
 
+    /** Distinct non-empty session tags among pose trials, sorted. */
+    fun sessionTags(task: TrialTask = TrialTask.POSE): List<String> =
+        loadAll(task).map { it.sessionTag }.filter { it.isNotBlank() }.distinct().sorted()
+
     fun deleteAll() {
         rootDir.listFiles()?.forEach { it.delete() }
     }
@@ -57,6 +61,7 @@ class LocalDatasetStore(context: Context) {
         put("startedAtEpochMs", trial.startedAtEpochMs)
         put("endedAtEpochMs", trial.endedAtEpochMs)
         put("notes", trial.notes)
+        put("sessionTag", trial.sessionTag)
         put("samples", JSONArray().also { arr ->
             trial.samples.forEach { sample -> arr.put(sampleToJson(sample)) }
         })
@@ -85,6 +90,7 @@ class LocalDatasetStore(context: Context) {
             }
         },
         notes = obj.optString("notes", ""),
+        sessionTag = obj.optString("sessionTag", ""),
     )
 
     private fun sampleFromJson(obj: JSONObject): SensorSample = SensorSample(

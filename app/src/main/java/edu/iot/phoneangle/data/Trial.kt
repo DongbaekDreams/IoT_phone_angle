@@ -48,6 +48,8 @@ data class Trial(
     val endedAtEpochMs: Long,
     val samples: List<SensorSample>,
     val notes: String = "",
+    /** Optional person/room label for a collection session (cross-environment experiments). */
+    val sessionTag: String = "",
 )
 
 enum class TrialTask(val id: String) {

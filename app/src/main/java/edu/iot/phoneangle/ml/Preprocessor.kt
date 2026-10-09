@@ -20,7 +20,12 @@ class Preprocessor(
         if (trial.task != TrialTask.POSE) return null
         val pose = PhonePose.fromShortId(trial.label) ?: return null
         val features = featuresFromSamples(trial.samples) ?: return null
-        return LabeledExample(features = features, label = pose)
+        return LabeledExample(
+            features = features,
+            label = pose,
+            trialId = trial.id,
+            sessionTag = trial.sessionTag,
+        )
     }
 
     fun examplesFromTrials(trials: List<Trial>): List<LabeledExample> =
@@ -134,6 +139,8 @@ class Preprocessor(
     }
 
     companion object {
+        /** Bump when feature layout/scaling changes; federation rejects mismatched versions. */
+        const val VERSION = 1
         const val FEATURE_DIM = 22 // 6 gravity + 6 accel + 6 gyro + 4 rotation
         const val TARGET_SAMPLES = 64
         private const val G = 9.80665f
@@ -143,4 +150,6 @@ class Preprocessor(
 data class LabeledExample(
     val features: FloatArray,
     val label: PhonePose,
+    val trialId: String = "",
+    val sessionTag: String = "",
 )

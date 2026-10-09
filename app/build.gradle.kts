@@ -45,6 +45,9 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.0")
     implementation("androidx.activity:activity-ktx:1.9.3")
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 
     testImplementation("junit:junit:4.13.2")
+    // Real org.json for JVM unit tests (android.jar's copy is a stub).
+    testImplementation("org.json:json:20240303")
 }

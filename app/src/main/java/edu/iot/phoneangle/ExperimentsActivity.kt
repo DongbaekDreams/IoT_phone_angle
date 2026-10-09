@@ -5,16 +5,12 @@ import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import edu.iot.phoneangle.data.SyntheticPoseData
-import edu.iot.phoneangle.data.TrialTask
 import edu.iot.phoneangle.databinding.ActivityExperimentsBinding
 import edu.iot.phoneangle.ml.Evaluator
 import edu.iot.phoneangle.ml.LocalTrainer
-import edu.iot.phoneangle.ml.ModelStore
-import edu.iot.phoneangle.ml.PoseModelBundle
-import edu.iot.phoneangle.ml.Preprocessor
+import edu.iot.phoneangle.ml.PoseWorkflow
 import edu.iot.phoneangle.ml.SensorConfig
-import edu.iot.phoneangle.ml.TrainConfig
-import edu.iot.phoneangle.ml.splitTrainTest
+import edu.iot.phoneangle.store.ExperimentRecord
 import edu.iot.phoneangle.store.ExperimentStore
 import edu.iot.phoneangle.store.LocalDatasetStore
 import java.util.concurrent.Executors
@@ -28,7 +24,7 @@ class ExperimentsActivity : AppCompatActivity() {
     private lateinit var binding: ActivityExperimentsBinding
     private lateinit var dataset: LocalDatasetStore
     private lateinit var experiments: ExperimentStore
-    private lateinit var modelStore: ModelStore
+    private lateinit var workflow: PoseWorkflow
     private lateinit var settings: ProjectSettings
 
     private val executor = Executors.newSingleThreadExecutor()
@@ -41,7 +37,7 @@ class ExperimentsActivity : AppCompatActivity() {
 
         dataset = LocalDatasetStore(this)
         experiments = ExperimentStore(this)
-        modelStore = ModelStore(this)
+        workflow = PoseWorkflow(this)
         settings = ProjectSettings(this)
 
         binding.toolbar.setNavigationOnClickListener { finish() }
@@ -60,6 +56,7 @@ class ExperimentsActivity : AppCompatActivity() {
 
         binding.runExperimentButton.setOnClickListener { runExperiment() }
         binding.runAllAblationsButton.setOnClickListener { runAllAblations() }
+        binding.runLosoButton.setOnClickListener { runLoso() }
         binding.clearExperimentsButton.setOnClickListener {
             experiments.deleteAll()
             refreshHistory()
@@ -120,38 +117,81 @@ class ExperimentsActivity : AppCompatActivity() {
         }
     }
 
-    private fun trainOne(config: SensorConfig, saveModel: Boolean) =
-        run {
-            val trials = dataset.loadAll(TrialTask.POSE)
-            val examples = Preprocessor(config).examplesFromTrials(trials)
-            if (examples.size < 6) error("Need more trials (have ${examples.size})")
-            val (train, test) = splitTrainTest(examples)
-            if (train.isEmpty() || test.isEmpty()) error("Need enough samples for train/test split")
-            val result = LocalTrainer(TrainConfig()).train(train)
-            val report = Evaluator().evaluate(result.model, test)
-            if (saveModel) {
-                modelStore.saveLocalPose(
-                    PoseModelBundle(
-                        sensorConfig = config,
-                        model = result.model,
-                        trainedAtEpochMs = System.currentTimeMillis(),
-                        trainAccuracy = result.trainAccuracy,
-                        trainSampleCount = result.sampleCount,
-                        testAccuracy = report.accuracy,
-                        epochs = result.epochsRun,
-                    ),
-                )
+    /** Ablation on the stable held-out split. [saveModel] also stores it as the local baseline. */
+    private fun trainOne(config: SensorConfig, saveModel: Boolean): ExperimentRecord {
+        val outcome = workflow.trainBaseline(config, save = saveModel)
+        val report = outcome.report ?: error("No held-out trials yet; record more data")
+        return ExperimentStore.fromEval(
+            sensorConfig = config,
+            trainCount = outcome.trainCount,
+            testCount = outcome.testCount,
+            trainAccuracy = outcome.bundle.trainAccuracy,
+            report = report,
+            epochs = outcome.bundle.epochs,
+            notes = "client=${settings.clientRole.name}",
+        )
+    }
+
+    private fun runLoso() {
+        if (!running.compareAndSet(false, true)) return
+        setBusy(true)
+        executor.execute {
+            val text = try {
+                leaveOneSessionOut()
+            } catch (e: Exception) {
+                getString(R.string.exp_failed, e.message ?: e.javaClass.simpleName)
             }
-            ExperimentStore.fromEval(
-                sensorConfig = config,
-                trainCount = train.size,
-                testCount = test.size,
-                trainAccuracy = result.trainAccuracy,
-                report = report,
-                epochs = result.epochsRun,
-                notes = "client=${settings.clientRole.name}",
+            runOnUiThread {
+                running.set(false)
+                setBusy(false)
+                binding.resultsText.text = text
+                refreshHistory()
+            }
+        }
+    }
+
+    /**
+     * Room/person generalization: for every session tag, train on all OTHER tags and test on
+     * that tag. Tests whether the model survives a new environment.
+     */
+    private fun leaveOneSessionOut(): String {
+        val examples = workflow.examples(SensorConfig.ALL).filter { it.sessionTag.isNotBlank() }
+        val tags = examples.map { it.sessionTag }.distinct().sorted()
+        if (tags.size < 2) {
+            return getString(R.string.exp_loso_need_tags, tags.size)
+        }
+        val accuracies = mutableListOf<Float>()
+        val out = StringBuilder()
+        out.appendLine(getString(R.string.exp_loso_header, tags.size))
+        for (tag in tags) {
+            val train = examples.filter { it.sessionTag != tag }
+            val test = examples.filter { it.sessionTag == tag }
+            if (train.size < PoseWorkflow.MIN_TOTAL_EXAMPLES || test.isEmpty()) {
+                out.appendLine("$tag: skipped (train=${train.size}, test=${test.size})")
+                continue
+            }
+            val result = LocalTrainer(PoseWorkflow.BASELINE_TRAIN).train(train)
+            val report = Evaluator().evaluate(result.model, test)
+            accuracies += report.accuracy
+            out.appendLine("held out '$tag': acc=${"%.1f".format(report.accuracy * 100)}%  macro-F1=${"%.1f".format(report.macroF1 * 100)}%  (train=${train.size}, test=${test.size})")
+            experiments.save(
+                ExperimentStore.fromEval(
+                    sensorConfig = SensorConfig.ALL,
+                    trainCount = train.size,
+                    testCount = test.size,
+                    trainAccuracy = result.trainAccuracy,
+                    report = report,
+                    epochs = result.epochsRun,
+                    notes = "loso heldout=$tag client=${settings.clientRole.name}",
+                ),
             )
         }
+        if (accuracies.isNotEmpty()) {
+            out.appendLine()
+            out.appendLine("mean across sessions: ${"%.1f".format(accuracies.average() * 100)}%")
+        }
+        return out.toString()
+    }
 
     private fun formatRecord(r: edu.iot.phoneangle.store.ExperimentRecord): String = buildString {
         appendLine(r.titleLine())
@@ -170,13 +210,14 @@ class ExperimentsActivity : AppCompatActivity() {
         } else {
             rows.joinToString("\n") { it.titleLine() }
         }
-        val trials = dataset.loadAll(TrialTask.POSE).size
-        binding.datasetLine.text = getString(R.string.exp_dataset_line, trials, settings.clientRole.label)
+        val trials = dataset.countByPose().values.sum()
+        binding.datasetLine.text = getString(R.string.exp_dataset_line, trials, settings.displayLabel())
     }
 
     private fun setBusy(busy: Boolean) {
         binding.runExperimentButton.isEnabled = !busy
         binding.runAllAblationsButton.isEnabled = !busy
+        binding.runLosoButton.isEnabled = !busy
         binding.seedSyntheticButton.isEnabled = !busy
     }
 }

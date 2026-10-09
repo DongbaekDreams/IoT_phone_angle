@@ -11,3 +11,29 @@
 *.apk
 *.ap_
 *.aab
+
+# Secrets: never commit tokens or credentials
+*.token
+.env
+.env.*
+secrets.*
+github_token*
+*.keystore
+*.jks
+
+# Raw data exports must never be committed (only weights/metrics go to git)
+/exports/
+/export/
+/trials/
+*.trials.json
+trials_*.json
+trial_*.json
+
+# Local server scratch state
+federation.old-*/
+/server/state/
+
+# Python
+__pycache__/
+*.pyc
+.venv/

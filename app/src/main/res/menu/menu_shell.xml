@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_switch_client"
+        android:title="@string/menu_switch_client"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_dev_tools"
+        android:title="@string/menu_dev_tools"
+        app:showAsAction="never" />
+</menu>

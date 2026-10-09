@@ -5,46 +5,48 @@ import org.json.JSONObject
 import java.io.File
 
 /**
+ * Where a saved model lives. Slots are kept strictly separate so local-only baselines
+ * are never contaminated by the federated global model.
+ */
+enum class ModelSlot(val fileName: String, val label: String) {
+    /** Trained only on this phone's data, from scratch. Never touches the global model. */
+    LOCAL_BASELINE("local_pose_model.json", "Local baseline"),
+
+    /** Warm-started from the global model, trained on local data, uploaded as a round update. */
+    ROUND_LOCAL("round_local_pose_model.json", "Round-local update"),
+
+    /** Latest aggregated global model pulled from the transport. */
+    GLOBAL("global_pose_model.json", "Federated global"),
+
+    /** The other client's baseline, pulled from the transport (for comparison only). */
+    PEER_BASELINE("peer_baseline_pose_model.json", "Peer baseline"),
+}
+
+/**
  * Persists local/global model weights + preprocessing metadata on-device.
  */
 class ModelStore(context: Context) {
 
     private val rootDir = File(context.filesDir, "models").also { it.mkdirs() }
 
-    fun saveLocalPose(bundle: PoseModelBundle) {
-        File(rootDir, LOCAL_POSE_FILE).writeText(ModelCodec.bundleToJson(bundle).toString(2))
+    fun save(slot: ModelSlot, bundle: PoseModelBundle) {
+        File(rootDir, slot.fileName).writeText(ModelCodec.bundleToJson(bundle).toString(2))
     }
 
-    fun loadLocalPose(): PoseModelBundle? = load(LOCAL_POSE_FILE)
-
-    fun saveGlobalPose(bundle: PoseModelBundle) {
-        File(rootDir, GLOBAL_POSE_FILE).writeText(ModelCodec.bundleToJson(bundle).toString(2))
-    }
-
-    fun loadGlobalPose(): PoseModelBundle? = load(GLOBAL_POSE_FILE)
-
-    fun savePeerPose(bundle: PoseModelBundle) {
-        File(rootDir, PEER_POSE_FILE).writeText(ModelCodec.bundleToJson(bundle).toString(2))
-    }
-
-    fun loadPeerPose(): PoseModelBundle? = load(PEER_POSE_FILE)
-
-    fun hasLocalPose(): Boolean = File(rootDir, LOCAL_POSE_FILE).exists()
-
-    fun deleteLocalPose() {
-        File(rootDir, LOCAL_POSE_FILE).delete()
-    }
-
-    private fun load(name: String): PoseModelBundle? {
-        val file = File(rootDir, name)
+    fun load(slot: ModelSlot): PoseModelBundle? {
+        val file = File(rootDir, slot.fileName)
         if (!file.exists()) return null
         return runCatching { ModelCodec.bundleFromJson(JSONObject(file.readText())) }.getOrNull()
     }
 
-    companion object {
-        const val LOCAL_POSE_FILE = "local_pose_model.json"
-        const val GLOBAL_POSE_FILE = "global_pose_model.json"
-        const val PEER_POSE_FILE = "peer_pose_model.json"
+    fun has(slot: ModelSlot): Boolean = File(rootDir, slot.fileName).exists()
+
+    fun delete(slot: ModelSlot) {
+        File(rootDir, slot.fileName).delete()
+    }
+
+    fun clearAll() {
+        ModelSlot.entries.forEach { delete(it) }
     }
 }
 
@@ -57,4 +59,9 @@ data class PoseModelBundle(
     val trainSampleCount: Int,
     val testAccuracy: Float? = null,
     val epochs: Int = 0,
+    /** Federated round this model belongs to (0 = local-only baseline). */
+    val round: Int = 0,
+    /** Client that produced this model (peer baseline / global contributors use this). */
+    val sourceClientId: String = "",
+    val contributors: List<String> = emptyList(),
 )

@@ -1,33 +1,174 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Phone Angle FL</string>
-    <string name="hub_title">Federated Phone Pose</string>
-    <string name="hub_subtitle">Local first: collect and train on-device, then federate model updates — never raw sensor data.</string>
-    <string name="hub_section_live">Sensors</string>
-    <string name="hub_section_local">Section 1 — Local pose</string>
-    <string name="hub_section_later">Coming next</string>
-    <string name="hub_open_orientation">Live orientation HUD</string>
-    <string name="hub_open_pose">Pose collection</string>
-    <string name="hub_pose_blurb">Record labeled 2s holds for the six required poses. Mark this phone as Client A or B for the non-IID split.</string>
-    <string name="hub_open_train">Train &amp; evaluate locally</string>
-    <string name="hub_open_infer">Live pose inference</string>
-    <string name="hub_section_experiments">Experiments &amp; extra credit</string>
-    <string name="hub_section_federated">Federated</string>
-    <string name="hub_open_experiments">Experiments &amp; synthetic data</string>
-    <string name="hub_open_typed">Typed-word trials</string>
-    <string name="hub_open_federation">Federation (FedAvg)</string>
-    <string name="hub_open_compare">Compare Local / Peer / Global</string>
+
+    <!-- Shell: top chips, bottom nav, menu -->
+    <string name="chip_mode">Sync: %1$s</string>
+    <string name="chip_round">Global round %1$d</string>
+    <string name="chip_round_none">No global yet</string>
+    <string name="nav_collect">Collect</string>
+    <string name="nav_model">Model</string>
+    <string name="nav_federate">Federate</string>
+    <string name="nav_compare">Compare</string>
+    <string name="menu_switch_client">Which phone is this?</string>
+    <string name="menu_dev_tools">Dev tools</string>
+    <string name="dialog_phone_title">Which phone is this?</string>
+    <string name="dialog_phone_message">🇨🇦 Canada and 🇵🇪 Peru are the two sites. Class / Personal is the pose split (Class: screen up/down + portrait up; Personal: portrait down + landscapes).\n\nIf Peru only has one phone, pick Peru Class or Peru Personal and leave the other unused. Setting a phone also fills the Collect location tag.</string>
+    <string name="percent_format">%1$.0f%%</string>
+
+    <!-- Collect -->
+    <string name="collect_tag_hint">Location tag (both phones at this site)</string>
+    <string name="collect_tag_helper">Use canada on both 🇨🇦 phones and peru on both 🇵🇪 phones. Same tag at a site, different tags across sites.</string>
+    <string name="collect_status">%1$s · %2$d trials on this phone</string>
+    <string name="collect_guidance_done">Coverage looks good. Add more people or rooms for better results.</string>
+    <string name="collect_guidance_need">Still needed: %1$s</string>
+    <string name="collect_tap_section">Tap a pose, then hold the phone that way for 2 seconds</string>
+    <string name="collect_count_primary">★ %1$d trials</string>
+    <string name="collect_count_cover">%1$d trials</string>
+    <string name="collect_legend">★ = main pose for this Class / Personal phone. Others only need a few trials for evaluation.</string>
+    <string name="collect_matches_now">Matches now</string>
+    <string name="collect_recording_title">Recording: %1$s</string>
+    <string name="collect_recording_samples">%1$d samples</string>
+    <string name="collect_mismatch_title">Phone is not in that pose</string>
+    <string name="collect_mismatch_message">The phone does not look like \"%1$s\" right now. Recording anyway would add a mislabeled trial.</string>
+    <string name="collect_record_anyway">Record anyway</string>
+
+    <!-- Model -->
+    <string name="model_explain">Train a model on this phone only. It never uses the global model, so it is the fair baseline to compare against.</string>
+    <string name="model_train">Train local baseline</string>
+    <string name="model_advanced_show">Advanced: sensor configuration</string>
+    <string name="model_advanced_hide">Hide advanced</string>
+    <string name="model_sensor_config_help">Pick which sensors the model may use (ablation). Federation always uses all sensors.</string>
+    <string name="model_status_none">No trials yet</string>
+    <string name="model_status_few">%1$d trials, need at least %2$d</string>
+    <string name="model_status_ready">%1$d trials, ready to train</string>
+    <string name="model_results_section">Held-out results</string>
+    <string name="model_results_empty">No baseline trained yet.</string>
+    <string name="model_results_no_test">Trained on %1$d trials (%2$s). No held-out trials yet, so no accuracy.</string>
+    <string name="model_results_summary">Trained on %1$d, tested on %2$d held-out trials (%3$s)\nAccuracy %4$.0f%% · macro-F1 %5$.0f%%</string>
+    <string name="model_train_failed">Training failed: %1$s</string>
+    <string name="model_class_value">F1 %1$.0f%% · n=%2$d</string>
+    <string name="model_confusion_title">Confusion matrix (rows = true, columns = predicted)</string>
+    <string name="model_live_section">Live test</string>
+    <string name="model_live_title">Live prediction</string>
+    <string name="model_live_baseline">Local baseline</string>
+    <string name="model_live_global">Global</string>
+    <string name="model_live_no_model">No model to test yet</string>
+    <string name="model_live_off">Switch on to test</string>
+    <string name="model_live_warming">Warming up sensors…</string>
+    <string name="model_live_confidence">Confidence %1$.0f%%</string>
+
+    <!-- Federate -->
+    <string name="fed_connection_section">Sync mode</string>
+    <string name="fed_mode_git">Git</string>
+    <string name="fed_mode_lan">LAN</string>
+    <string name="fed_mode_git_hint">Weights go through the GitHub repo. Works from different rooms; each phone takes its turn.</string>
+    <string name="fed_mode_lan_hint">Weights go to the laptop server on the same Wi-Fi. Best when both phones are together.</string>
+    <string name="fed_refresh">Refresh</string>
+    <string name="fed_settings">Connection settings</string>
+    <string name="fed_status_local">%1$s\nGlobal model on this phone: %2$s</string>
+    <string name="fed_no_global">none yet</string>
+    <string name="fed_global_round">round %1$d</string>
+    <string name="fed_status_remote">%1$s\nLatest global: round %2$d · collecting round %3$d\nUpdates received from: %4$s</string>
+    <string name="fed_remote_nobody">nobody yet</string>
+    <string name="fed_remote_unreachable">Cannot reach the federation. Check Connection settings.</string>
+    <string name="fed_round_section">One round</string>
+    <string name="fed_step1_title">1 · Train from global</string>
+    <string name="fed_step1_desc">Fetches the newest global model, then trains it further on this phone\'s data.</string>
+    <string name="fed_step1_button">Train</string>
+    <string name="fed_step2_title">2 · Send update</string>
+    <string name="fed_step2_desc">Uploads only the new weights and counts (and your baseline for comparison). Never raw sensor data.</string>
+    <string name="fed_step2_button">Send update</string>
+    <string name="fed_step3_title">3 · Get new global</string>
+    <string name="fed_step3_desc">Pulls the averaged model once the round has been aggregated.</string>
+    <string name="fed_step3_button">Get global</string>
+    <string name="fed_aggregate_button">Aggregate round now</string>
+    <string name="fed_aggregate_confirm_title">Aggregate round %1$d?</string>
+    <string name="fed_aggregate_confirm_message">%1$d update(s) received: %2$s.\n\nPhones that have not sent yet will have to train again for the next round. Wait for everyone first if you can.</string>
+    <string name="fed_aggregate_confirm_yes">Aggregate now</string>
+    <string name="fed_log_nothing_to_aggregate">No updates for round %1$d yet, nothing to aggregate.</string>
+    <string name="fed_log_section">Activity</string>
+    <string name="fed_log_empty">Nothing yet.</string>
+    <string name="fed_log_error">Error: %1$s</string>
+    <string name="fed_log_trained">Trained round %1$d update on %2$d trials · train %3$s · held-out %4$s</string>
+    <string name="fed_log_global">Got global round %1$d (from %2$s) · held-out %3$s</string>
+    <string name="fed_log_waiting">Round %1$d is not aggregated yet (%2$d updates in).</string>
+    <string name="fed_log_aggregated">Aggregated round %1$d from %2$s · held-out %3$s</string>
+
+    <!-- Compare -->
+    <string name="compare_title">Local vs peer vs global</string>
+    <string name="compare_explain">All models are scored on this phone\'s held-out trials, which were never used for training.</string>
+    <string name="compare_local">Local</string>
+    <string name="compare_peer">Peer</string>
+    <string name="compare_global">Global</string>
+    <string name="compare_peer_named">Peer (%1$s)</string>
+    <string name="compare_global_round">Global r%1$d</string>
+    <string name="compare_missing">not available</string>
+    <string name="compare_no_holdout">no held-out data</string>
+    <string name="compare_value">%1$.0f%% (n=%2$d)</string>
+    <string name="compare_verdict_none">Train a baseline and run a federated round to compare.</string>
+    <string name="compare_verdict_need_more">Need both a baseline and a global model to compare.</string>
+    <string name="compare_verdict_global_vs_local">Global vs local baseline: %1$+.1f points</string>
+    <string name="compare_verdict_global_vs_peer">Global vs peer baseline: %1$+.1f points</string>
+    <string name="compare_pull">Get peer baseline and global</string>
+    <string name="compare_publish">Share my results</string>
+    <string name="compare_pulling">Pulling…</string>
+    <string name="compare_publishing">Sharing metrics…</string>
+    <string name="compare_pulled_global">Pulled global round %1$d.</string>
+    <string name="compare_global_current">Global is up to date.</string>
+    <string name="compare_pulled_peer">Pulled baseline from %1$s.</string>
+    <string name="compare_peer_pick_title">Compare against which phone?</string>
+    <string name="compare_peer_choice">%1$s (%2$s, %3$d trials)</string>
+    <string name="compare_no_peer">No peer baseline published yet.</string>
+    <string name="compare_published">Shared metrics for %1$d models (no raw data).</string>
+    <string name="compare_confusion_section">Confusion matrix</string>
+
+    <!-- Dev tools -->
+    <string name="dev_title">Dev tools</string>
+    <string name="dev_connection_section">Connection</string>
+    <string name="dev_client_id">Client id (prefer canada-class / canada-personal / peru-class / peru-personal)</string>
+    <string name="dev_server_url">LAN server URL (http://laptop-ip:8080)</string>
+    <string name="dev_github_repo">GitHub repo (owner/name)</string>
+    <string name="dev_github_branch">Branch</string>
+    <string name="dev_github_token">GitHub token</string>
+    <string name="dev_token_help">Use a fine-grained token limited to this one repo with Contents read/write. It stays on this phone only.</string>
+    <string name="dev_save">Save</string>
+    <string name="dev_saved">Saved</string>
+    <string name="dev_test">Test connection (current sync mode)</string>
+    <string name="dev_testing">Testing…</string>
+    <string name="dev_test_ok">OK: %1$s</string>
+    <string name="dev_test_failed">Failed: %1$s</string>
+    <string name="dev_tools_section">Tools</string>
+    <string name="dev_open_hud">Live orientation HUD</string>
+    <string name="dev_open_experiments">Experiments and synthetic data</string>
+    <string name="dev_open_typed">Typed-word trials (extra credit)</string>
+    <string name="dev_open_hud_settings">HUD settings</string>
+    <string name="dev_danger_section">Danger zone</string>
+    <string name="dev_clear_trials">Delete all trials on this phone</string>
+    <string name="dev_clear_models">Delete all models on this phone</string>
+    <string name="dev_clear_trials_confirm">Delete every recorded trial on this phone? This cannot be undone.</string>
+    <string name="dev_clear_models_confirm">Delete the local baseline, round-local, global and peer models on this phone?</string>
+    <string name="dev_confirm_yes">Delete</string>
+    <string name="dev_done">Done</string>
+
+    <!-- Experiments -->
     <string name="exp_title">Experiments</string>
     <string name="exp_seed_synthetic">Seed synthetic pose trials</string>
     <string name="exp_seeded">Seeded %1$d synthetic trials</string>
     <string name="exp_run_one">Run experiment (selected sensors)</string>
     <string name="exp_run_all">Run all sensor ablations</string>
+    <string name="exp_run_loso">Run room/person generalization</string>
+    <string name="exp_loso_need_tags">Need trials from at least 2 different person/room tags (have %1$d). Set the tag on the Collect tab.</string>
+    <string name="exp_loso_header">Leave-one-session-out across %1$d sessions</string>
     <string name="exp_results_placeholder">Seed synthetic data (or collect real trials), then run an experiment.</string>
     <string name="exp_history">Saved runs</string>
     <string name="exp_history_empty">No saved experiments yet.</string>
     <string name="exp_clear">Clear experiment history</string>
     <string name="exp_failed">Experiment failed: %1$s</string>
     <string name="exp_dataset_line">Pose trials: %1$d · role: %2$s</string>
+    <string name="train_sensor_config">Sensor configuration</string>
+
+    <!-- Typed word -->
     <string name="typed_title">Typed-word trials</string>
     <string name="typed_blurb">Extra-credit shell: record motion while typing a target string. The classifier never reads keyboard text — only sensors. Training comes later.</string>
     <string name="typed_target">Target string (label)</string>
@@ -42,72 +183,8 @@
     <string name="typed_cancelled">Recording cancelled</string>
     <string name="typed_counts">Trials by label</string>
     <string name="typed_counts_empty">No typing trials yet.</string>
-    <string name="fed_title">Federation</string>
-    <string name="fed_blurb">Submit local model weights to the FedAvg server. Raw sensor data never leaves the phone.</string>
-    <string name="fed_server_url">Server base URL</string>
-    <string name="fed_save_url">Save URL</string>
-    <string name="fed_url_saved">Server URL saved</string>
-    <string name="fed_health">Ping /health</string>
-    <string name="fed_submit">Submit local update</string>
-    <string name="fed_aggregate">Aggregate pending (FedAvg)</string>
-    <string name="fed_fetch">Fetch global model</string>
-    <string name="fed_reset">Reset server</string>
-    <string name="fed_status_idle">Idle</string>
-    <string name="fed_working">Working…</string>
-    <string name="fed_error">Error: %1$s</string>
-    <string name="fed_no_local">Train a local model first.</string>
-    <string name="fed_local_line">Local ready · %1$s · n=%2$d · %3$s</string>
-    <string name="compare_title">Model compare</string>
-    <string name="compare_blurb">Evaluate Local, Peer, and Global models on this phone\'s pose trials.</string>
-    <string name="compare_refresh">Re-evaluate</string>
-    <string name="compare_copy_peer">Copy local → peer slot (dev helper)</string>
-    <string name="compare_working">Evaluating…</string>
-    <string name="compare_no_data">No pose trials on device. Seed synthetic data or collect real trials.</string>
-    <string name="compare_header">Eval set: %1$d pose trials</string>
-    <string name="train_title">Train &amp; evaluate</string>
-    <string name="train_dataset_summary">Pose trials on device: %1$d (%2$d distinct labels)</string>
-    <string name="train_no_model">No saved local model yet.</string>
-    <string name="train_model_summary">Saved model — %1$s · train n=%2$d · train acc=%3$s · test acc=%4$s</string>
-    <string name="train_sensor_config">Sensor configuration</string>
-    <string name="train_button">Train local pose model</string>
-    <string name="train_refresh">Refresh counts</string>
-    <string name="train_results_placeholder">Train to see accuracy, per-class metrics, and confusion matrix.</string>
-    <string name="train_running">Training…</string>
-    <string name="train_saved">Local model saved</string>
-    <string name="train_failed">Training failed: %1$s</string>
-    <string name="train_need_more">Need more labeled trials (have %1$d usable examples). Collect at least a few of each pose.</string>
-    <string name="train_result_header">Config: %1$s</string>
-    <string name="train_result_counts">Train n=%1$d · Test n=%2$d</string>
-    <string name="train_result_train_acc">Train accuracy: %1$s</string>
-    <string name="train_result_test_acc">Test accuracy: %1$s</string>
-    <string name="train_result_macro_f1">Macro-F1: %1$s</string>
-    <string name="train_result_per_class">Per-class:</string>
-    <string name="train_result_confusion">Confusion (rows=true, cols=pred):</string>
-    <string name="train_no_test_split">Not enough samples for a held-out test split.</string>
-    <string name="infer_title">Live pose inference</string>
-    <string name="infer_predicted">Predicted pose</string>
-    <string name="infer_probs">Class probabilities</string>
-    <string name="infer_no_model">No model</string>
-    <string name="infer_train_first">Train a local model first from the hub.</string>
-    <string name="infer_warming">Warming up sensors…</string>
-    <string name="infer_confidence">Confidence %1$.0f%%</string>
-    <string name="infer_model_meta">Using local model · %1$s · trained on %2$d examples</string>
-    <string name="pose_collection_title">Pose collection</string>
-    <string name="pose_client_role">This phone\'s client role</string>
-    <string name="pose_role_a">Client A</string>
-    <string name="pose_role_b">Client B</string>
-    <string name="pose_select_label">Pose to record</string>
-    <string name="pose_primary_hint">★ Primary for this client — collect plenty of these.</string>
-    <string name="pose_eval_hint">· Not primary — still record a few for evaluation coverage.</string>
-    <string name="pose_record">Hold pose &amp; record 2s</string>
-    <string name="pose_idle_status">Idle — hold the phone still in the selected pose, then record.</string>
-    <string name="pose_recording_status">Recording %1$s… %2$d samples</string>
-    <string name="pose_saved">Saved trial (%1$d samples)</string>
-    <string name="pose_total_trials">Stored trials: %1$d</string>
-    <string name="pose_star_legend">★ = primary for this client · = eval coverage</string>
-    <string name="pose_clear_all">Clear all local trials</string>
-    <string name="pose_cleared">Local trials cleared</string>
-    <string name="pose_sensors_banner">Sensors — accel: %1$s · gyro: %2$s · gravity: %3$s · rotation: %4$s</string>
+
+    <!-- HUD -->
     <string name="pitch_label">Pitch</string>
     <string name="roll_label">Roll</string>
     <string name="yaw_label">Yaw</string>

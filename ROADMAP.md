@@ -9,9 +9,9 @@ Check items off as you finish them. Order matters — finish each gate before th
 ## 0 — Sensors / foundation
 
 - [x] Live orientation HUD (pitch / roll / yaw)
-- [x] Project hub screen
+- [x] App shell: Collect / Model / Federate / Compare tabs + Dev tools
 - [x] `SensorCollector`, `TrialRecorder`, `LocalDatasetStore`
-- [x] Six poses + Client A / B roles in the app
+- [x] Six poses + Class / Personal roles (course Client A / B) in the app
 
 ## 1 — Local pose classifier (one phone)
 
@@ -21,16 +21,17 @@ Check items off as you finish them. Order matters — finish each gate before th
 - [x] Lightweight local model + train (softmax / logistic)
 - [x] Save / reload model
 - [x] Live pose inference
-- [x] Local evaluate (accuracy, per-class, confusion, macro-F1)
+- [x] Local evaluate (accuracy, per-class, confusion, macro-F1) on a stable held-out split
 - [x] Synthetic pose data (for emulator / dry-run before real collection)
 
 **Gate:** one phone can collect → train → save → predict → evaluate on held-out poses.
 
 ## 2 — Repeat on second phone + non-IID data
 
-- [ ] Phone A: plenty of primary poses (flat face-up/down, upright) + light cover of all six
-- [ ] Phone B: plenty of primary poses (upside-down, on left/right side) + light cover of all six
-- [ ] Same model architecture and preprocessing on both devices
+- [ ] Class phones: plenty of primary poses (screen up / down, portrait up) + light cover of all six
+- [ ] Personal phones: plenty of primary poses (portrait down, landscape left / right) + light cover of all six
+- [x] Same model architecture and preprocessing on both devices (compatibility checked on every update)
+- [ ] 🇨🇦 Canada Class+Personal and 🇵🇪 Peru (1 or 2 phones); Collect tags `canada` / `peru`
 
 **Gate:** both phones independently train and evaluate compatible local models.
 
@@ -39,13 +40,15 @@ Check items off as you finish them. Order matters — finish each gate before th
 - [x] Train/test split + reproducible metrics UI
 - [x] Sensor ablations (accel / gyro / gravity / combined)
 - [x] Record which config produced each result
+- [x] Room/person generalization experiment (leave-one-session-out) in Dev tools → Experiments
 - [ ] Re-run ablations on **real** collected data (not only synthetic)
+- [ ] Run room/person generalization on real, tagged data
 
 **Gate:** repeatable local experiments with enough metadata to reproduce.
 
 ## 4 — Typed-word extension (extra credit) — local first
 
-- [x] Labeled typing trial recorder UI (benign targets)
+- [x] Labeled typing trial recorder UI (benign targets, session tag applied)
 - [ ] Time-series preprocess + local typed-word model
 - [ ] Local infer + FP/FN metrics on each phone
 
@@ -53,11 +56,15 @@ Check items off as you finish them. Order matters — finish each gate before th
 
 ## 5 — Federated pose learning
 
-- [x] Federated server (FedAvg baseline) — `server/fedavg_server.py`
-- [x] `FederationClient` + in-app federation UI (model updates only)
-- [x] Model compare screen (Local / Peer / Global)
-- [ ] Keep independent Client A / Client B local baselines (with real phones)
-- [ ] Compare three models on the same six-pose eval set (real data)
+- [x] Federation protocol with two transports: LAN server and GitHub repo
+- [x] Iterative rounds with warm start (Train from global → Send update → Get global)
+- [x] Separate model slots: local baseline / round-local / global / peer baseline
+- [x] Privacy guard on every upload (+ unit tests, `.gitignore` for tokens/exports)
+- [x] In-app and laptop (`tools/aggregate_from_git.py`) aggregation
+- [x] Automated round-trip tests (real server, fake GitHub API)
+- [ ] LAN round trip on two physical phones
+- [ ] Git round trip on two physical phones (private repo + fine-grained token)
+- [ ] Compare three models on the same six-pose eval set (real data), results pushed to `results/`
 
 **Gate:** federated global model runs; raw samples never leave the phones.
 
@@ -70,11 +77,22 @@ Check items off as you finish them. Order matters — finish each gate before th
 
 ---
 
+## Data campaign (needs the phones)
+
+- [ ] All phones installed (`./gradlew :app:installDebug`)
+- [ ] Each phone set via ⋮ → Which phone is this? (🇨🇦/🇵🇪 × Class/Personal)
+- [ ] Peru: use whichever phone(s) are available; unused Peru slot stays empty
+- [ ] Each phone: ≥ 3 trials of each primary pose, ≥ 1 of the others, under its site tag (`canada` / `peru`)
+- [ ] Both site tags present so leave-one-session-out can run
+- [ ] Train local baseline on each phone; **Send update** (also publishes the baseline)
+- [ ] 2+ federated rounds; Compare tab → *Get peer baseline and global* → *Share my results*
+- [ ] Run all ablations and the generalization experiment; copy numbers into the report
+
 ## Final checklist
 
 - [ ] Two Android clients and a federated server
-- [ ] Raw sensor data remain on the phones
-- [ ] Client A and B have different local training distributions
+- [x] Raw sensor data remain on the phones (enforced in code + tests)
+- [ ] Class and Personal phones have different local training distributions
 - [ ] Two local-only models + one federated global model evaluated
 - [ ] At least one meaningful technical contribution evaluated
 - [ ] Report, Sources folder, README, and in-class demo complete

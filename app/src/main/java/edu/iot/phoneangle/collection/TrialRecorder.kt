@@ -26,6 +26,7 @@ class TrialRecorder {
         task: TrialTask,
         clientRole: ClientRole,
         notes: String = "",
+        sessionTag: String = "",
     ) {
         check(active == null) { "Already recording a trial" }
         active = ActiveTrial(
@@ -35,6 +36,7 @@ class TrialRecorder {
             clientRole = clientRole,
             startedAtEpochMs = System.currentTimeMillis(),
             notes = notes,
+            sessionTag = sessionTag,
             samples = CopyOnWriteArrayList(),
         )
     }
@@ -55,6 +57,7 @@ class TrialRecorder {
             endedAtEpochMs = System.currentTimeMillis(),
             samples = current.samples.toList(),
             notes = current.notes,
+            sessionTag = current.sessionTag,
         )
     }
 
@@ -69,6 +72,7 @@ class TrialRecorder {
         val clientRole: ClientRole,
         val startedAtEpochMs: Long,
         val notes: String,
+        val sessionTag: String,
         val samples: CopyOnWriteArrayList<SensorSample>,
     )
 }

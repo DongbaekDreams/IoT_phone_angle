@@ -71,6 +71,7 @@ class TypedWordActivity : AppCompatActivity() {
             task = TrialTask.TYPED_WORD,
             clientRole = settings.clientRole,
             notes = "typed_word_shell",
+            sessionTag = settings.sessionTag,
         )
         setRecordingUi(true)
         binding.statusText.text = getString(R.string.typed_recording, label)

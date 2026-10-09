@@ -14,13 +14,9 @@ object SyntheticPoseData {
 
     private const val G = 9.80665f
 
-    fun gravityFor(pose: PhonePose): FloatArray3 = when (pose) {
-        PhonePose.SCREEN_UP -> FloatArray3(0f, 0f, G)
-        PhonePose.SCREEN_DOWN -> FloatArray3(0f, 0f, -G)
-        PhonePose.PORTRAIT_UP -> FloatArray3(0f, G, 0f)
-        PhonePose.PORTRAIT_DOWN -> FloatArray3(0f, -G, 0f)
-        PhonePose.LANDSCAPE_LEFT -> FloatArray3(G, 0f, 0f)
-        PhonePose.LANDSCAPE_RIGHT -> FloatArray3(-G, 0f, 0f)
+    fun gravityFor(pose: PhonePose): FloatArray3 {
+        val e = pose.expectedGravity()
+        return FloatArray3(e.x * G, e.y * G, e.z * G)
     }
 
     fun generateTrial(
@@ -29,6 +25,7 @@ object SyntheticPoseData {
         sampleCount: Int = 80,
         seed: Long = Random.nextLong(),
         notes: String = "synthetic",
+        sessionTag: String = "synthetic",
     ): Trial {
         val rng = Random(seed)
         val baseG = gravityFor(pose)
@@ -61,6 +58,7 @@ object SyntheticPoseData {
             endedAtEpochMs = started + 2_000,
             samples = samples,
             notes = notes,
+            sessionTag = sessionTag,
         )
     }
 
