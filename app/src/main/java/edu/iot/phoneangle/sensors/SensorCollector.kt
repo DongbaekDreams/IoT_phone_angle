@@ -67,6 +67,13 @@ class SensorCollector(
             Sensor.TYPE_GAME_ROTATION_VECTOR,
             Sensor.TYPE_ROTATION_VECTOR -> latestRotation = FloatArray4.from(event.values)
         }
+        // Publish on one clock only — firing on every sensor was ~4× sample spam and UI jank.
+        val clock = if (accelerometer != null) {
+            event.sensor.type == Sensor.TYPE_ACCELEROMETER
+        } else {
+            event.sensor.type == Sensor.TYPE_GYROSCOPE
+        }
+        if (!clock) return
         onSample(
             SensorSample(
                 timestampNs = event.timestamp,

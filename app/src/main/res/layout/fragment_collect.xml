@@ -14,42 +14,6 @@
         android:paddingTop="12dp"
         android:paddingBottom="20dp">
 
-        <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/taskToggle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:selectionRequired="true"
-            app:singleSelection="true">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/taskPose"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/task_poses" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/taskTyped"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/task_typed" />
-        </com.google.android.material.button.MaterialButtonToggleGroup>
-
-        <TextView
-            android:id="@+id/typedPreviewBanner"
-            style="@style/Text.App.Body"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:background="@drawable/bg_angle_card"
-            android:padding="12dp"
-            android:text="@string/typed_preview_banner"
-            android:textColor="@color/ink"
-            android:visibility="gone" />
-
         <TextView
             android:id="@+id/collectStatus"
             style="@style/Text.App.Title"
@@ -63,23 +27,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp" />
-
-        <com.google.android.material.textfield.TextInputLayout
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:hint="@string/collect_tag_hint"
-            app:helperText="@string/collect_tag_helper">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/tagInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:imeOptions="actionDone"
-                android:inputType="text"
-                android:maxLines="1" />
-        </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Pose collection -->
         <LinearLayout
@@ -156,97 +103,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14dp"
                 android:text="@string/collect_legend" />
-        </LinearLayout>
-
-        <!-- Typed-word collection (preview) -->
-        <LinearLayout
-            android:id="@+id/typedSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                style="@style/Text.App.Section"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:text="@string/typed_section_targets" />
-
-            <Spinner
-                android:id="@+id/targetSpinner"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/bg_angle_card" />
-
-            <TextView
-                android:id="@+id/typedHint"
-                style="@style/Text.App.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/typed_hint"
-                android:textColor="@color/accent"
-                android:visibility="gone" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/typedStartButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="@string/typed_start"
-                app:backgroundTint="@color/accent"
-                app:cornerRadius="12dp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:orientation="horizontal">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/typedStopButton"
-                    style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/typed_stop"
-                    app:cornerRadius="12dp" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/typedCancelButton"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/typed_cancel" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/typedStatus"
-                style="@style/Text.App.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="@string/typed_idle" />
-
-            <TextView
-                style="@style/Text.App.Section"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:text="@string/typed_section_counts" />
-
-            <TextView
-                android:id="@+id/typedCounts"
-                style="@style/Text.App.Body"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/bg_angle_card"
-                android:padding="14dp"
-                android:textColor="@color/ink" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

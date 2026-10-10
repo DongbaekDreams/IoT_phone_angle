@@ -4,13 +4,10 @@ import android.content.Context
 import edu.iot.phoneangle.IdentityRegistry
 import edu.iot.phoneangle.ProjectSettings
 import edu.iot.phoneangle.R
-import edu.iot.phoneangle.TaskKind
 import edu.iot.phoneangle.TransportMode
-import edu.iot.phoneangle.data.TrialTask
 import edu.iot.phoneangle.ml.ModelSlot
 import edu.iot.phoneangle.ml.ModelStore
 import edu.iot.phoneangle.ml.PoseWorkflow
-import edu.iot.phoneangle.store.LocalDatasetStore
 
 enum class StepStatus { TODO, DONE, BLOCKED, PREVIEW }
 
@@ -31,7 +28,6 @@ class ChecklistState(context: Context) {
     private val registry = IdentityRegistry(app)
     private val workflow = PoseWorkflow(app)
     private val models = ModelStore(app)
-    private val dataset = LocalDatasetStore(app)
 
     fun steps(): List<ChecklistStep> {
         val claimed = registry.isLocked
@@ -39,7 +35,6 @@ class ChecklistState(context: Context) {
         val hasBaseline = models.has(ModelSlot.LOCAL_BASELINE)
         val hasGlobal = models.has(ModelSlot.GLOBAL)
         val hasPeer = models.has(ModelSlot.PEER_BASELINE)
-        val typedCount = dataset.loadAll(TrialTask.TYPED_WORD).size
         val syncLooksSet = when (settings.transportMode) {
             TransportMode.GIT -> settings.githubToken.isNotBlank()
             TransportMode.LAN -> settings.serverBaseUrl.isNotBlank()
@@ -132,28 +127,9 @@ class ChecklistState(context: Context) {
                 },
                 navId = R.id.nav_results,
             ),
-            ChecklistStep(
-                id = "typed",
-                title = app.getString(R.string.home_step_typed),
-                detail = if (typedCount == 0) {
-                    app.getString(R.string.home_step_typed_detail)
-                } else {
-                    app.getString(R.string.home_step_typed_count, typedCount)
-                },
-                status = StepStatus.PREVIEW,
-                navId = R.id.nav_collect,
-            ),
         )
     }
 
     fun nextAction(): ChecklistStep? =
         steps().firstOrNull { it.status == StepStatus.TODO }
-
-    fun prepareTypedCollect() {
-        settings.taskKind = TaskKind.TYPED_WORD
-    }
-
-    fun preparePoseCollect() {
-        settings.taskKind = TaskKind.POSE
-    }
 }

@@ -6,8 +6,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import edu.iot.phoneangle.data.SyntheticPoseData
 import edu.iot.phoneangle.databinding.ActivityExperimentsBinding
-import edu.iot.phoneangle.ml.Evaluator
-import edu.iot.phoneangle.ml.LocalTrainer
 import edu.iot.phoneangle.ml.PoseWorkflow
 import edu.iot.phoneangle.ml.SensorConfig
 import edu.iot.phoneangle.store.ExperimentRecord
@@ -56,7 +54,6 @@ class ExperimentsActivity : AppCompatActivity() {
 
         binding.runExperimentButton.setOnClickListener { runExperiment() }
         binding.runAllAblationsButton.setOnClickListener { runAllAblations() }
-        binding.runLosoButton.setOnClickListener { runLoso() }
         binding.clearExperimentsButton.setOnClickListener {
             experiments.deleteAll()
             refreshHistory()
@@ -132,67 +129,6 @@ class ExperimentsActivity : AppCompatActivity() {
         )
     }
 
-    private fun runLoso() {
-        if (!running.compareAndSet(false, true)) return
-        setBusy(true)
-        executor.execute {
-            val text = try {
-                leaveOneSessionOut()
-            } catch (e: Exception) {
-                getString(R.string.exp_failed, e.message ?: e.javaClass.simpleName)
-            }
-            runOnUiThread {
-                running.set(false)
-                setBusy(false)
-                binding.resultsText.text = text
-                refreshHistory()
-            }
-        }
-    }
-
-    /**
-     * Room/person generalization: for every session tag, train on all OTHER tags and test on
-     * that tag. Tests whether the model survives a new environment.
-     */
-    private fun leaveOneSessionOut(): String {
-        val examples = workflow.examples(SensorConfig.ALL).filter { it.sessionTag.isNotBlank() }
-        val tags = examples.map { it.sessionTag }.distinct().sorted()
-        if (tags.size < 2) {
-            return getString(R.string.exp_loso_need_tags, tags.size)
-        }
-        val accuracies = mutableListOf<Float>()
-        val out = StringBuilder()
-        out.appendLine(getString(R.string.exp_loso_header, tags.size))
-        for (tag in tags) {
-            val train = examples.filter { it.sessionTag != tag }
-            val test = examples.filter { it.sessionTag == tag }
-            if (train.size < PoseWorkflow.MIN_TOTAL_EXAMPLES || test.isEmpty()) {
-                out.appendLine("$tag: skipped (train=${train.size}, test=${test.size})")
-                continue
-            }
-            val result = LocalTrainer(PoseWorkflow.BASELINE_TRAIN).train(train)
-            val report = Evaluator().evaluate(result.model, test)
-            accuracies += report.accuracy
-            out.appendLine("held out '$tag': acc=${"%.1f".format(report.accuracy * 100)}%  macro-F1=${"%.1f".format(report.macroF1 * 100)}%  (train=${train.size}, test=${test.size})")
-            experiments.save(
-                ExperimentStore.fromEval(
-                    sensorConfig = SensorConfig.ALL,
-                    trainCount = train.size,
-                    testCount = test.size,
-                    trainAccuracy = result.trainAccuracy,
-                    report = report,
-                    epochs = result.epochsRun,
-                    notes = "loso heldout=$tag client=${settings.clientRole.name}",
-                ),
-            )
-        }
-        if (accuracies.isNotEmpty()) {
-            out.appendLine()
-            out.appendLine("mean across sessions: ${"%.1f".format(accuracies.average() * 100)}%")
-        }
-        return out.toString()
-    }
-
     private fun formatRecord(r: edu.iot.phoneangle.store.ExperimentRecord): String = buildString {
         appendLine(r.titleLine())
         appendLine("train acc=${"%.1f".format(r.trainAccuracy * 100)}%  test=${"%.1f".format(r.testAccuracy * 100)}%  macro-F1=${"%.1f".format(r.macroF1 * 100)}%")
@@ -217,7 +153,6 @@ class ExperimentsActivity : AppCompatActivity() {
     private fun setBusy(busy: Boolean) {
         binding.runExperimentButton.isEnabled = !busy
         binding.runAllAblationsButton.isEnabled = !busy
-        binding.runLosoButton.isEnabled = !busy
         binding.seedSyntheticButton.isEnabled = !busy
     }
 }

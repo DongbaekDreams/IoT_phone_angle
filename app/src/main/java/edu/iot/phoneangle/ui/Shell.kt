@@ -11,4 +11,6 @@ interface ShellHost {
     fun openTab(menuItemId: Int)
     fun openDevTools()
     fun openIdentityDialog()
+    /** Hide bottom nav while the soft keyboard is up (typed collect). */
+    fun setBottomNavVisible(visible: Boolean)
 }

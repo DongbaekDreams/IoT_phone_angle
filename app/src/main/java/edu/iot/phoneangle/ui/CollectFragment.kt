@@ -7,17 +7,13 @@ import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.GridLayout
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
-import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import edu.iot.phoneangle.ProjectSettings
 import edu.iot.phoneangle.R
-import edu.iot.phoneangle.TaskKind
 import edu.iot.phoneangle.collection.TrialRecorder
 import edu.iot.phoneangle.data.FloatArray3
 import edu.iot.phoneangle.data.PhonePose
@@ -26,10 +22,9 @@ import edu.iot.phoneangle.databinding.FragmentCollectBinding
 import edu.iot.phoneangle.databinding.ItemPoseCardBinding
 import edu.iot.phoneangle.ml.PoseWorkflow
 import edu.iot.phoneangle.sensors.SensorCollector
-import edu.iot.phoneangle.store.LocalDatasetStore
 
 /**
- * Collect tab — pose holds (main path) or typed-word trials (preview; no training yet).
+ * Collect tab: pose holds (class project).
  */
 class CollectFragment : Fragment(), Refreshable {
 
@@ -38,7 +33,6 @@ class CollectFragment : Fragment(), Refreshable {
 
     private lateinit var settings: ProjectSettings
     private lateinit var workflow: PoseWorkflow
-    private lateinit var dataset: LocalDatasetStore
     private lateinit var collector: SensorCollector
 
     private val recorder = TrialRecorder()
@@ -49,7 +43,7 @@ class CollectFragment : Fragment(), Refreshable {
     private val cards = mutableMapOf<PhonePose, ItemPoseCardBinding>()
     private val handler = Handler(Looper.getMainLooper())
 
-    private enum class Phase { Idle, GetReady, Recording, TypedRecording }
+    private enum class Phase { Idle, GetReady, Recording }
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -67,57 +61,26 @@ class CollectFragment : Fragment(), Refreshable {
         val ctx = requireContext()
         settings = ProjectSettings(ctx)
         workflow = PoseWorkflow(ctx)
-        dataset = LocalDatasetStore(ctx)
         collector = SensorCollector(ctx) { sample ->
             latestGravity = sample.gravity ?: sample.accel ?: latestGravity
             if (recorder.isRecording) recorder.offer(sample)
         }
 
-        binding.tagInput.setText(settings.sessionTag)
-        binding.tagInput.doAfterTextChanged { settings.sessionTag = it?.toString().orEmpty() }
         binding.cancelRecordButton.setOnClickListener { cancelCapture() }
 
-        binding.taskToggle.check(
-            if (settings.taskKind == TaskKind.TYPED_WORD) R.id.taskTyped else R.id.taskPose,
-        )
-        binding.taskToggle.addOnButtonCheckedListener { _, id, checked ->
-            if (!checked) return@addOnButtonCheckedListener
-            if (phase != Phase.Idle) {
-                binding.taskToggle.check(
-                    if (settings.taskKind == TaskKind.TYPED_WORD) R.id.taskTyped else R.id.taskPose,
-                )
-                return@addOnButtonCheckedListener
-            }
-            settings.taskKind = if (id == R.id.taskTyped) TaskKind.TYPED_WORD else TaskKind.POSE
-            applyTaskUi()
-            refresh()
-        }
-
-        binding.targetSpinner.adapter = ArrayAdapter(
-            ctx,
-            android.R.layout.simple_spinner_dropdown_item,
-            TYPED_TARGETS,
-        )
-        binding.typedStartButton.setOnClickListener { startTypedTrial() }
-        binding.typedStopButton.setOnClickListener { stopTypedTrial(save = true) }
-        binding.typedCancelButton.setOnClickListener { stopTypedTrial(save = false) }
-
         buildPoseCards()
-        applyTaskUi()
-        setTypedRecordingUi(false)
     }
 
     override fun onResume() {
         super.onResume()
+        refresh()
         collector.start()
         handler.post(ticker)
-        refresh()
     }
 
     override fun onPause() {
         handler.removeCallbacks(ticker)
         cancelCapture()
-        if (phase == Phase.TypedRecording) stopTypedTrial(save = false)
         collector.stop()
         super.onPause()
     }
@@ -130,31 +93,7 @@ class CollectFragment : Fragment(), Refreshable {
 
     override fun refresh() {
         if (_binding == null) return
-        val wanted = if (settings.taskKind == TaskKind.TYPED_WORD) R.id.taskTyped else R.id.taskPose
-        if (binding.taskToggle.checkedButtonId != wanted) {
-            binding.taskToggle.check(wanted)
-        }
-        applyTaskUi()
 
-        if (binding.tagInput.text?.toString() != settings.sessionTag) {
-            binding.tagInput.setText(settings.sessionTag)
-        }
-
-        if (settings.taskKind == TaskKind.TYPED_WORD) {
-            refreshTyped()
-        } else {
-            refreshPose()
-        }
-    }
-
-    private fun applyTaskUi() {
-        val typed = settings.taskKind == TaskKind.TYPED_WORD
-        binding.typedPreviewBanner.isVisible = typed
-        binding.poseSection.isVisible = !typed
-        binding.typedSection.isVisible = typed
-    }
-
-    private fun refreshPose() {
         val role = settings.clientRole
         val status = workflow.status(role)
         binding.collectStatus.text = getString(R.string.collect_status, settings.displayLabel(), status.totalTrials)
@@ -174,25 +113,6 @@ class CollectFragment : Fragment(), Refreshable {
                 if (primary) R.string.collect_count_primary else R.string.collect_count_cover,
                 n,
             )
-        }
-    }
-
-    private fun refreshTyped() {
-        val trials = dataset.loadAll(TrialTask.TYPED_WORD)
-        val byLabel = trials.groupingBy { it.label }.eachCount()
-        binding.collectStatus.text = getString(
-            R.string.collect_status,
-            settings.displayLabel(),
-            trials.size,
-        )
-        binding.collectGuidance.text = getString(R.string.typed_blurb)
-        binding.typedCounts.text = if (byLabel.isEmpty()) {
-            getString(R.string.typed_counts_empty)
-        } else {
-            byLabel.entries.joinToString("\n") { "${it.key}: ${it.value}" }
-        }
-        if (phase != Phase.TypedRecording) {
-            binding.typedStatus.text = getString(R.string.typed_idle)
         }
     }
 
@@ -220,7 +140,7 @@ class CollectFragment : Fragment(), Refreshable {
     }
 
     private fun updateMatchHighlights() {
-        if (_binding == null || phase != Phase.Idle || settings.taskKind != TaskKind.POSE) return
+        if (_binding == null || phase != Phase.Idle) return
         val g = latestGravity
         val accent = ContextCompat.getColor(requireContext(), R.color.accent)
         val line = ContextCompat.getColor(requireContext(), R.color.line)
@@ -234,7 +154,7 @@ class CollectFragment : Fragment(), Refreshable {
     }
 
     private fun onPoseTapped(pose: PhonePose) {
-        if (phase != Phase.Idle || settings.taskKind != TaskKind.POSE) return
+        if (phase != Phase.Idle) return
         if (pose.needsGetReady) startGetReady(pose) else maybeWarnThenRecord(pose)
     }
 
@@ -289,7 +209,6 @@ class CollectFragment : Fragment(), Refreshable {
             task = TrialTask.POSE,
             clientRole = role,
             notes = if (role.isPrimary(pose)) "primary" else "eval_cover",
-            sessionTag = settings.sessionTag,
         )
         binding.recordingTitle.text = getString(R.string.collect_recording_title, pose.displayName)
         countdown = object : CountDownTimer(RECORD_MS, 50) {
@@ -311,7 +230,7 @@ class CollectFragment : Fragment(), Refreshable {
     private fun cancelCapture() {
         countdown?.cancel()
         countdown = null
-        if (recorder.isRecording && phase != Phase.TypedRecording) recorder.cancel()
+        if (recorder.isRecording) recorder.cancel()
         finishCapture()
     }
 
@@ -319,7 +238,7 @@ class CollectFragment : Fragment(), Refreshable {
         countdown?.cancel()
         countdown = null
         pendingPose = null
-        if (phase != Phase.TypedRecording) phase = Phase.Idle
+        phase = Phase.Idle
         if (_binding == null) return
         binding.recordingCard.isVisible = false
         binding.recordProgress.progress = 0
@@ -329,91 +248,10 @@ class CollectFragment : Fragment(), Refreshable {
     private fun setBusyUi(busy: Boolean) {
         if (_binding == null) return
         for (card in cards.values) card.root.isEnabled = !busy
-        binding.tagInput.isEnabled = !busy
-        binding.taskToggle.isEnabled = !busy
-    }
-
-    private fun startTypedTrial() {
-        if (phase != Phase.Idle || settings.taskKind != TaskKind.TYPED_WORD) return
-        val label = TYPED_TARGETS[binding.targetSpinner.selectedItemPosition]
-        phase = Phase.TypedRecording
-        recorder.start(
-            label = label,
-            task = TrialTask.TYPED_WORD,
-            clientRole = settings.clientRole,
-            notes = "typed_word_shell",
-            sessionTag = settings.sessionTag,
-        )
-        setTypedRecordingUi(true)
-        binding.typedStatus.text = getString(R.string.typed_recording, label)
-        countdown = object : CountDownTimer(TYPED_AUTO_STOP_MS, 200L) {
-            override fun onTick(ms: Long) {
-                if (_binding == null) return
-                binding.typedStatus.text = getString(
-                    R.string.typed_recording_count,
-                    label,
-                    recorder.sampleCount,
-                    ms / 1000,
-                )
-            }
-
-            override fun onFinish() {
-                stopTypedTrial(save = true)
-            }
-        }.start()
-    }
-
-    private fun stopTypedTrial(save: Boolean) {
-        countdown?.cancel()
-        countdown = null
-        if (phase != Phase.TypedRecording && !recorder.isRecording) {
-            setTypedRecordingUi(false)
-            phase = Phase.Idle
-            return
-        }
-        if (!save) {
-            if (recorder.isRecording) recorder.cancel()
-            phase = Phase.Idle
-            setTypedRecordingUi(false)
-            binding.typedStatus.text = getString(R.string.typed_cancelled)
-            return
-        }
-        if (!recorder.isRecording) {
-            phase = Phase.Idle
-            setTypedRecordingUi(false)
-            return
-        }
-        val trial = recorder.stop()
-        dataset.save(trial)
-        phase = Phase.Idle
-        setTypedRecordingUi(false)
-        refreshTyped()
-        Toast.makeText(requireContext(), getString(R.string.typed_saved, trial.samples.size), Toast.LENGTH_SHORT).show()
-        binding.typedStatus.text = getString(R.string.typed_idle)
-    }
-
-    private fun setTypedRecordingUi(recording: Boolean) {
-        if (_binding == null) return
-        binding.typedStartButton.isEnabled = !recording
-        binding.typedStopButton.isEnabled = recording
-        binding.typedCancelButton.isEnabled = recording
-        binding.targetSpinner.isEnabled = !recording
-        binding.typedHint.isVisible = recording
-        binding.tagInput.isEnabled = !recording
-        binding.taskToggle.isEnabled = !recording
     }
 
     companion object {
         private const val GET_READY_MS = 4_000L
         private const val RECORD_MS = 2_000L
-        private const val TYPED_AUTO_STOP_MS = 12_000L
-
-        val TYPED_TARGETS = listOf(
-            "google.com",
-            "youtube.com",
-            "wikipedia.org",
-            "example.com",
-            "other",
-        )
     }
 }

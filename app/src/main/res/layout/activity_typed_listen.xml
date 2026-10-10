@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/bg"
+        app:navigationIcon="@drawable/ic_back"
+        app:title="@string/typed_listen_title"
+        app:titleTextColor="@color/ink" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/keysDisclaimer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@color/accent_soft"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp"
+                android:text="@string/typed_listen_keys_disclaimer_short"
+                android:textColor="@color/accent"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/statusLine"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/typed_listen_monitoring"
+                android:textColor="@color/ink"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/statusDetail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/typed_listen_monitoring_detail"
+                android:textColor="@color/muted"
+                android:textSize="13sp" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/debugSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/typed_listen_debug"
+                android:textColor="@color/muted" />
+
+            <LinearLayout
+                android:id="@+id/debugPanel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="@color/surface"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/debugLine"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/muted"
+                    android:textSize="12sp" />
+
+                <LinearLayout
+                    android:id="@+id/confidenceRows"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
+            </LinearLayout>
+
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/typedInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_typed_input"
+                android:gravity="top|start"
+                android:hint="@string/typed_listen_input_hint"
+                android:imeOptions="actionNone"
+                android:importantForAutofill="no"
+                android:inputType="textCapSentences|textMultiLine"
+                android:maxLines="5"
+                android:minLines="3"
+                android:paddingHorizontal="18dp"
+                android:paddingVertical="14dp"
+                android:textColor="@color/ink"
+                android:textColorHint="@color/faint"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/detectPopup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="72dp"
+            android:background="@drawable/bg_detect_popup"
+            android:elevation="8dp"
+            android:paddingHorizontal="36dp"
+            android:paddingVertical="16dp"
+            android:text="@string/typed_listen_flagged"
+            android:textColor="@color/btn_primary_text"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>

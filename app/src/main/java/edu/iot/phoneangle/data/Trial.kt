@@ -48,13 +48,15 @@ data class Trial(
     val endedAtEpochMs: Long,
     val samples: List<SensorSample>,
     val notes: String = "",
-    /** Optional person/room label for a collection session (cross-environment experiments). */
+    /** Legacy field; kept empty for JSON compatibility. */
     val sessionTag: String = "",
 )
 
 enum class TrialTask(val id: String) {
     POSE("pose"),
-    TYPED_WORD("typed_word");
+    TYPED_WORD("typed_word"),
+    /** One continuous scrolling-feed typing session; per-word timeline lives in [Trial.notes]. */
+    TYPED_FEED("typed_feed");
 
     companion object {
         fun fromId(id: String): TrialTask =

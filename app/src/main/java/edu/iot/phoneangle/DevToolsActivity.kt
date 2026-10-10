@@ -43,11 +43,6 @@ class DevToolsActivity : AppCompatActivity() {
 
         binding.openHudButton.setOnClickListener { open(MainActivity::class.java) }
         binding.openExperimentsButton.setOnClickListener { open(ExperimentsActivity::class.java) }
-        binding.openTypedButton.setOnClickListener {
-            ProjectSettings(this).taskKind = TaskKind.TYPED_WORD
-            Toast.makeText(this, R.string.dev_typed_on_collect, Toast.LENGTH_LONG).show()
-            finish()
-        }
         binding.openHudSettingsButton.setOnClickListener { open(SettingsActivity::class.java) }
 
         binding.clearTrialsButton.setOnClickListener {

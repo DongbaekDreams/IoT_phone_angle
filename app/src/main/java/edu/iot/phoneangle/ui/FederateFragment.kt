@@ -10,7 +10,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import edu.iot.phoneangle.R
-import edu.iot.phoneangle.TaskKind
 import edu.iot.phoneangle.TransportMode
 import edu.iot.phoneangle.databinding.FragmentFederateBinding
 import edu.iot.phoneangle.federation.FederationOps
@@ -40,7 +39,7 @@ object ActivityLog {
 
 /**
  * Sync tab - connection settings + one federated pose round (Git or LAN).
- * Typed-word federation is not available yet.
+ * Federation covers the pose models only.
  */
 class FederateFragment : Fragment(), Refreshable {
 
@@ -108,8 +107,6 @@ class FederateFragment : Fragment(), Refreshable {
     override fun refresh() {
         if (_binding == null) return
         val s = ops.settings
-        val typed = s.taskKind == TaskKind.TYPED_WORD
-        binding.typedGateBanner.isVisible = typed
         val git = s.transportMode == TransportMode.GIT
         binding.modeHint.setText(if (git) R.string.fed_mode_git_hint else R.string.fed_mode_lan_hint)
         binding.gitFields.isVisible = git
@@ -122,7 +119,7 @@ class FederateFragment : Fragment(), Refreshable {
         )
         binding.fedStatus.text = if (remoteText.isBlank()) local else "$local\n\n$remoteText"
         binding.fedLog.text = ActivityLog.text().ifBlank { getString(R.string.fed_log_empty) }
-        setRoundButtonsEnabled(!typed && !busy.get())
+        setRoundButtonsEnabled(!busy.get())
     }
 
     private fun saveConnectionFields() {
@@ -285,8 +282,7 @@ class FederateFragment : Fragment(), Refreshable {
     }
 
     private fun setButtonsEnabled(enabled: Boolean) {
-        val typed = ops.settings.taskKind == TaskKind.TYPED_WORD
-        setRoundButtonsEnabled(enabled && !typed)
+        setRoundButtonsEnabled(enabled)
         binding.refreshStatusButton.isEnabled = enabled
         binding.testConnectionButton.isEnabled = enabled
     }

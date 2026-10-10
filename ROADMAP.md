@@ -40,17 +40,18 @@ Check items off as you finish them. Order matters — finish each gate before th
 - [x] Train/test split + reproducible metrics UI
 - [x] Sensor ablations (accel / gyro / gravity / combined)
 - [x] Record which config produced each result
-- [x] Room/person generalization experiment (leave-one-session-out) in Dev tools → Experiments
+- [x] Sensor ablation UI in Dev tools → Experiments
 - [ ] Re-run ablations on **real** collected data (not only synthetic)
-- [ ] Run room/person generalization on real, tagged data
 
 **Gate:** repeatable local experiments with enough metadata to reproduce.
 
 ## 4 — Typed-word extension (extra credit) — local first
 
-- [x] Labeled typing trial recorder UI (benign targets, session tag applied)
-- [ ] Time-series preprocess + local typed-word model
-- [ ] Local infer + FP/FN metrics on each phone
+- [x] Labeled typing trial recorder UI (`google` / `yahoo` / `other`)
+- [x] Chunked typed preprocessor + Softmax (`GOOGLE` / `YAHOO` / `OTHER`)
+- [x] Local train / holdout metrics (incl. FP) on Model tab
+- [x] Sliding-window Listen with debounce
+- [ ] Enough real trials on both phones; tune threshold if needed
 
 **Gate:** both phones can train/evaluate typed-word models with no server.
 
@@ -82,8 +83,7 @@ Check items off as you finish them. Order matters — finish each gate before th
 - [ ] All phones installed (`./gradlew :app:installDebug`)
 - [ ] Each phone claims one slot (🇨🇦/🇵🇪 × Class/Personal); locked on device, synced via Git/LAN
 - [ ] Peru: use whichever phone(s) are available; unused Peru slot stays empty
-- [ ] Each phone: ≥ 3 trials of each primary pose, ≥ 1 of the others; room tag = physical place
-- [ ] ≥2 different room tags so leave-one-session-out can run
+- [ ] Each phone: ≥ 3 trials of each primary pose, ≥ 1 of the others
 - [ ] Train local baseline on each phone; **Send update** (also publishes the baseline)
 - [ ] 2+ federated rounds; Compare tab → *Get peer baseline and global* → *Share my results*
 - [ ] Run all ablations and the generalization experiment; copy numbers into the report

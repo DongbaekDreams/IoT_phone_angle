@@ -29,6 +29,9 @@ class HomeFragment : Fragment(), Refreshable {
         checklist = ChecklistState(requireContext())
         settings = ProjectSettings(requireContext())
         binding.nextStepButton.setOnClickListener { runNext() }
+        binding.extraCreditButton.setOnClickListener {
+            startActivity(android.content.Intent(requireContext(), edu.iot.phoneangle.ExtraCreditActivity::class.java))
+        }
     }
 
     override fun onResume() {
@@ -85,16 +88,7 @@ class HomeFragment : Fragment(), Refreshable {
     private fun openStep(step: ChecklistStep) {
         val host = activity as? ShellHost ?: return
         when (step.id) {
-            "claim" -> host.openIdentityDialog()
-            "typed" -> {
-                checklist.prepareTypedCollect()
-                host.openTab(R.id.nav_collect)
-            }
-            "collect_pose" -> {
-                checklist.preparePoseCollect()
-                host.openTab(step.navId)
-            }
-            else -> if (step.navId != 0) host.openTab(step.navId)
+            "claim" -> host.openIdentityDialog()            else -> if (step.navId != 0) host.openTab(step.navId)
         }
     }
 }

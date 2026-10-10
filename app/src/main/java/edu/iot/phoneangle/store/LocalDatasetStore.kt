@@ -35,11 +35,50 @@ class LocalDatasetStore(context: Context) {
             .orEmpty()
     }
 
+    /**
+     * Fast label/task counts without parsing sample arrays (trials store samples last).
+     * Used by Home / Collect status so tab switches stay snappy.
+     */
+    fun countByLabel(task: TrialTask): Map<String, Int> {
+        val counts = linkedMapOf<String, Int>()
+        val files = rootDir.listFiles { f -> f.extension == "json" } ?: return emptyMap()
+        val buf = ByteArray(1024)
+        for (file in files) {
+            val head = runCatching {
+                file.inputStream().use { ins ->
+                    val n = ins.read(buf)
+                    if (n <= 0) return@use ""
+                    String(buf, 0, n)
+                }
+            }.getOrNull() ?: continue
+            val taskId = HEAD_TASK.find(head)?.groupValues?.getOrNull(1) ?: continue
+            if (taskId != task.id) continue
+            val label = HEAD_LABEL.find(head)?.groupValues?.getOrNull(1) ?: continue
+            counts[label] = (counts[label] ?: 0) + 1
+        }
+        return counts
+    }
+
     fun countByPose(clientRole: ClientRole? = null): Map<PhonePose, Int> {
         val counts = PhonePose.entries.associateWith { 0 }.toMutableMap()
-        loadAll(TrialTask.POSE).forEach { trial ->
-            if (clientRole != null && trial.clientRole != clientRole) return@forEach
-            val pose = PhonePose.fromShortId(trial.label) ?: return@forEach
+        val files = rootDir.listFiles { f -> f.extension == "json" } ?: return counts
+        val buf = ByteArray(1024)
+        for (file in files) {
+            val head = runCatching {
+                file.inputStream().use { ins ->
+                    val n = ins.read(buf)
+                    if (n <= 0) return@use ""
+                    String(buf, 0, n)
+                }
+            }.getOrNull() ?: continue
+            val taskId = HEAD_TASK.find(head)?.groupValues?.getOrNull(1) ?: continue
+            if (taskId != TrialTask.POSE.id) continue
+            if (clientRole != null) {
+                val role = HEAD_ROLE.find(head)?.groupValues?.getOrNull(1) ?: continue
+                if (role != clientRole.name) continue
+            }
+            val label = HEAD_LABEL.find(head)?.groupValues?.getOrNull(1) ?: continue
+            val pose = PhonePose.fromShortId(label) ?: continue
             counts[pose] = (counts[pose] ?: 0) + 1
         }
         return counts
@@ -92,6 +131,12 @@ class LocalDatasetStore(context: Context) {
         notes = obj.optString("notes", ""),
         sessionTag = obj.optString("sessionTag", ""),
     )
+
+    companion object {
+        private val HEAD_TASK = Regex("\"task\"\\s*:\\s*\"([^\"]+)\"")
+        private val HEAD_LABEL = Regex("\"label\"\\s*:\\s*\"([^\"]+)\"")
+        private val HEAD_ROLE = Regex("\"clientRole\"\\s*:\\s*\"([^\"]+)\"")
+    }
 
     private fun sampleFromJson(obj: JSONObject): SensorSample = SensorSample(
         timestampNs = obj.getLong("timestampNs"),

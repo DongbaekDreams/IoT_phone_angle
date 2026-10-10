@@ -6,6 +6,10 @@
         android:title="@string/menu_switch_client"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_extra_credit"
+        android:title="@string/menu_extra_credit"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_dev_tools"
         android:title="@string/menu_dev_tools"
         app:showAsAction="never" />

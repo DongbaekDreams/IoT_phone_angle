@@ -21,8 +21,8 @@ CSC 8223 — six-pose phone classification, local-first training, then FedAvg. R
 | Tab | What it does |
 |-----|--------------|
 | **Home** | Checklist for this phone: claim slot → connect sync → collect → train → federate → compare. Next-step CTA jumps to the right place. |
-| **Collect** | **Poses** (main): tap a pose, flip during get-ready if needed, hold 2 s. **Typed words** (preview): record sensor trials while typing a target string — training/detection not built yet. |
-| **Model** | Train this phone's **local baseline** (never sees the global model), held-out accuracy / confusion, live predictions. Pose only; typed mode shows a not-ready banner. |
+| **Collect** | **Poses** (main): tap a pose, flip during get-ready if needed, hold 2 s. **Typed words**: short trials (`google` / `yahoo` / `other`), then **Listen** for sliding-window spotting after training. |
+| **Model** | Train local baseline (pose or typed, depending on Collect toggle), held-out metrics, live test / listen. |
 | **Sync** | Connection (Git / LAN + URL / token + Test) and one federated round: **1 Train from global**, **2 Send update**, **3 Get new global** (+ Aggregate). |
 | **Results** | Local vs peer vs global on this phone's held-out trials. Pose only while typed ML is unfinished. |
 
@@ -43,7 +43,13 @@ The top bar shows nationality + Class/Personal, sync mode and current global rou
 5. **Sync** → run federated rounds (below).
 6. **Results** → pull peer baseline and compare.
 
-Typed-word collection is optional (Collect → Typed words). Model / Sync rounds / Results stay pose-only until that pipeline exists.
+### Typed words (extra credit, local)
+
+1. Collect → **Typed words** → record short trials of `google`, `yahoo`, and `other` (≥8 each).
+2. Model → **Train typed baseline** (with Collect still on Typed words).
+3. Collect → **Start listening** (or Model live switch) — sliding ~2.5s window alerts on google/yahoo.
+
+Typed federation is not wired yet; Sync / Results remain pose-only.
 
 ## Two-phone federated round
 
@@ -54,7 +60,7 @@ Typed-word collection is optional (Collect → Typed words). Model / Sync rounds
 | 🇨🇦 Canada | `canada-class` | `canada-personal` |
 | 🇵🇪 Peru | `peru-class` | `peru-personal` (optional) |
 
-Class = course Client A (screen up/down, portrait up). Personal = course Client B (portrait down, landscapes). Use Collect’s **Room / session** tag for the actual room (e.g. `dorm`, `lab`).
+Class = course Client A (screen up/down, portrait up). Personal = course Client B (portrait down, landscapes).
 
 On each phone after claiming:
 
@@ -94,7 +100,7 @@ federation/rounds/NNNN/updates/<client>.json  weights, sampleCount, per-pose tri
 federation/rounds/NNNN/global.json            aggregated model
 results/baselines/<client>-local.json         independent local-only model
 results/bindings/<deviceHash>.json            permanent phone → slot claims
-results/<client>/<timestamp>-<kind>.json      held-out metrics, confusion matrix, session tags
+results/<client>/<timestamp>-<kind>.json      held-out metrics, confusion matrix
 ```
 
 Raw trials are never uploaded.

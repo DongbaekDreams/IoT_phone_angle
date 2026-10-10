@@ -29,14 +29,16 @@ enum class PhonePose(
         howToHold = "Hold the phone vertically but flipped — top edge (speaker/camera) toward the floor.",
         shortId = "portrait_down",
     ),
+    // Display uses everyday “lying on … side” (which edge is down). shortId / gravity
+    // still follow the brief: landscape_left = left edge up, landscape_right = right edge up.
     LANDSCAPE_LEFT(
-        displayName = "On left side",
-        howToHold = "Stand the phone on its long edge so the left side points at the ceiling.",
+        displayName = "On right side",
+        howToHold = "Stand the phone on its right long edge so the left edge points at the ceiling.",
         shortId = "landscape_left",
     ),
     LANDSCAPE_RIGHT(
-        displayName = "On right side",
-        howToHold = "Stand the phone on its long edge so the right side points at the ceiling.",
+        displayName = "On left side",
+        howToHold = "Stand the phone on its left long edge so the right edge points at the ceiling.",
         shortId = "landscape_right",
     );
 

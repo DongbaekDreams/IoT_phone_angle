@@ -45,6 +45,23 @@
             android:screenOrientation="portrait"
             android:parentActivityName=".DevToolsActivity" />
         <activity
+            android:name=".TypedPlayActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".MainShellActivity"
+            android:windowSoftInputMode="adjustResize|stateAlwaysVisible" />
+        <activity
+            android:name=".ExtraCreditActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".MainShellActivity" />
+        <activity
+            android:name=".TypedListenActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:parentActivityName=".MainShellActivity"
+            android:windowSoftInputMode="adjustResize|stateAlwaysVisible" />
+        <activity
             android:name=".SettingsActivity"
             android:exported="false"
             android:parentActivityName=".DevToolsActivity" />

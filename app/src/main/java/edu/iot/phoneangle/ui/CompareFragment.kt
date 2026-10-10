@@ -7,9 +7,7 @@ import android.view.ViewGroup
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import edu.iot.phoneangle.ProjectSettings
 import edu.iot.phoneangle.R
-import edu.iot.phoneangle.TaskKind
 import edu.iot.phoneangle.databinding.FragmentCompareBinding
 import edu.iot.phoneangle.databinding.ItemMetricRowBinding
 import edu.iot.phoneangle.federation.FederationOps
@@ -67,10 +65,8 @@ class CompareFragment : Fragment(), Refreshable {
 
     override fun refresh() {
         if (_binding == null) return
-        val typed = ProjectSettings(requireContext()).taskKind == TaskKind.TYPED_WORD
-        binding.typedGateBanner.isVisible = typed
-        binding.pullButton.isEnabled = !typed && !busy.get()
-        binding.publishButton.isEnabled = !typed && !busy.get()
+        binding.pullButton.isEnabled = !busy.get()
+        binding.publishButton.isEnabled = !busy.get()
 
         entries = listOf(ModelSlot.LOCAL_BASELINE, ModelSlot.PEER_BASELINE, ModelSlot.GLOBAL).map { slot ->
             val bundle = ops.workflow.models.load(slot)
@@ -135,7 +131,6 @@ class CompareFragment : Fragment(), Refreshable {
     private var peerChoices: List<ModelPayload> = emptyList()
 
     private fun pull() {
-        if (ProjectSettings(requireContext()).taskKind == TaskKind.TYPED_WORD) return
         peerChoices = emptyList()
         runTask(R.string.compare_pulling, afterSuccess = ::choosePeer) {
             val t = ops.transport()
@@ -176,7 +171,6 @@ class CompareFragment : Fragment(), Refreshable {
     }
 
     private fun publish() {
-        if (ProjectSettings(requireContext()).taskKind == TaskKind.TYPED_WORD) return
         runTask(R.string.compare_publishing) {
             val n = ops.publishResults(ops.transport())
             getString(R.string.compare_published, n)

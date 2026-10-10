@@ -48,6 +48,7 @@ class MainShellActivity : AppCompatActivity(), ShellHost {
         binding.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_switch_client -> { openIdentityDialog(); true }
+                R.id.action_extra_credit -> { startActivity(Intent(this, ExtraCreditActivity::class.java)); true }
                 R.id.action_dev_tools -> { openDevTools(); true }
                 else -> false
             }
@@ -100,6 +101,10 @@ class MainShellActivity : AppCompatActivity(), ShellHost {
 
     override fun openDevTools() {
         startActivity(Intent(this, DevToolsActivity::class.java))
+    }
+
+    override fun setBottomNavVisible(visible: Boolean) {
+        binding.bottomNav.isVisible = visible
     }
 
     private fun showTab(itemId: Int) {

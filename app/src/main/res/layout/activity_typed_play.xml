@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/bg"
+        app:navigationIcon="@drawable/ic_back"
+        app:title="" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/promptWord"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:textColor="@color/ink"
+                android:textSize="40sp" />
+
+            <TextView
+                android:id="@+id/feedback"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center"
+                android:minHeight="22dp"
+                android:textColor="@color/accent"
+                android:textSize="15sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/typoButton"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/typed_typo"
+                android:textColor="@color/muted" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/typedInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_typed_input"
+        android:hint="@string/typed_input_hint"
+        android:imeOptions="actionDone"
+        android:importantForAutofill="no"
+        android:inputType="textVisiblePassword|textNoSuggestions"
+        android:maxLines="1"
+        android:paddingHorizontal="18dp"
+        android:paddingVertical="16dp"
+        android:textColor="@color/ink"
+        android:textColorHint="@color/faint"
+        android:textSize="20sp" />
+</LinearLayout>

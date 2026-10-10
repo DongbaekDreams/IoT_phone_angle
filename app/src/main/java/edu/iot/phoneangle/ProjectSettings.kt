@@ -9,17 +9,6 @@ enum class TransportMode(val label: String) {
     LAN("LAN"),
 }
 
-/** Which experiment the Collect / Model / Results tabs are aimed at. */
-enum class TaskKind(val label: String) {
-    POSE("Poses"),
-    TYPED_WORD("Typed words");
-
-    companion object {
-        fun fromId(id: String): TaskKind =
-            entries.find { it.name == id } ?: POSE
-    }
-}
-
 /**
  * App-private prefs: nationality + Class/Personal identity, transport, room tag.
  * The GitHub token lives here (never in the repo); backups are disabled in the manifest.
@@ -30,7 +19,6 @@ class ProjectSettings(context: Context) {
 
     /**
      * 🇨🇦 / 🇵🇪 nationality label for this device (who owns the phone). Saved on-device.
-     * Not a room/location — that is [sessionTag].
      */
     var nationality: Nationality
         get() {
@@ -108,7 +96,7 @@ class ProjectSettings(context: Context) {
     var githubRepo: String
         get() = prefs.getString(KEY_GH_REPO, DEFAULT_GITHUB_REPO) ?: DEFAULT_GITHUB_REPO
         set(value) {
-            prefs.edit().putString(KEY_GH_REPO, value.trim().trim('/')).apply()
+            prefs.edit().putString(KEY_GH_REPO, normalizeGithubRepo(value)).apply()
         }
 
     var githubBranch: String
@@ -123,20 +111,6 @@ class ProjectSettings(context: Context) {
             prefs.edit().putString(KEY_GH_TOKEN, value.trim()).apply()
         }
 
-    /** Room / session label stamped onto newly recorded trials (independent of nationality). */
-    var sessionTag: String
-        get() = prefs.getString(KEY_SESSION_TAG, "") ?: ""
-        set(value) {
-            prefs.edit().putString(KEY_SESSION_TAG, value.trim()).apply()
-        }
-
-    /** Active experiment for Collect / Model / Results. Typed-word ML is not ready yet. */
-    var taskKind: TaskKind
-        get() = TaskKind.fromId(prefs.getString(KEY_TASK, TaskKind.POSE.name) ?: TaskKind.POSE.name)
-        set(value) {
-            prefs.edit().putString(KEY_TASK, value.name).apply()
-        }
-
     companion object {
         private const val PREFS = "project_settings"
         private const val KEY_NATIONALITY = "nationality"
@@ -147,9 +121,6 @@ class ProjectSettings(context: Context) {
         private const val KEY_GH_REPO = "github_repo"
         private const val KEY_GH_BRANCH = "github_branch"
         private const val KEY_GH_TOKEN = "github_token"
-        private const val KEY_SESSION_TAG = "session_tag"
-        private const val KEY_TASK = "task_kind"
-
         const val DEFAULT_SERVER_URL = "http://10.0.2.2:8080"
         const val DEFAULT_GITHUB_REPO = "DongbaekDreams/IoT_phone_angle"
 
@@ -160,5 +131,14 @@ class ProjectSettings(context: Context) {
 
         fun sanitizeId(raw: String): String =
             raw.trim().lowercase().replace(Regex("[^a-z0-9_-]+"), "-").trim('-')
+
+        /** Accepts `owner/repo` or a pasted github.com URL. */
+        fun normalizeGithubRepo(raw: String): String {
+            var s = raw.trim().trim('/')
+            s = s.removePrefix("https://github.com/").removePrefix("http://github.com/")
+            s = s.removePrefix("github.com/")
+            if (s.endsWith(".git")) s = s.removeSuffix(".git")
+            return s.trim('/')
+        }
     }
 }

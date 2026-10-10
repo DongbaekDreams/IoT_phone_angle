@@ -11,7 +11,6 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import edu.iot.phoneangle.ProjectSettings
 import edu.iot.phoneangle.R
-import edu.iot.phoneangle.TaskKind
 import edu.iot.phoneangle.data.PhonePose
 import edu.iot.phoneangle.databinding.FragmentModelBinding
 import edu.iot.phoneangle.databinding.ItemMetricRowBinding
@@ -26,7 +25,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Tab 2 - train this phone's local-only baseline, see held-out results, and try live predictions.
+ * Train the local pose baseline, show held-out metrics, and run a live test (class project).
  */
 class ModelFragment : Fragment(), Refreshable {
 
@@ -41,13 +40,13 @@ class ModelFragment : Fragment(), Refreshable {
     private val executor = Executors.newSingleThreadExecutor()
     private val training = AtomicBoolean(false)
     private val handler = Handler(Looper.getMainLooper())
-    private val liveRows = mutableMapOf<PhonePose, ItemMetricRowBinding>()
+    private val poseLiveRows = mutableMapOf<PhonePose, ItemMetricRowBinding>()
     private var liveOn = false
 
     private val liveTicker = object : Runnable {
         override fun run() {
-            renderLive()
-            handler.postDelayed(this, 150L)
+            renderPoseLive()
+            handler.postDelayed(this, 200L)
         }
     }
 
@@ -60,7 +59,9 @@ class ModelFragment : Fragment(), Refreshable {
         val ctx = requireContext()
         settings = ProjectSettings(ctx)
         workflow = PoseWorkflow(ctx)
-        collector = SensorCollector(ctx) { sample -> engine.offer(sample) }
+        collector = SensorCollector(ctx) { sample ->
+            if (liveOn) engine.offer(sample)
+        }
 
         binding.sensorConfigSpinner.adapter = ArrayAdapter(
             ctx,
@@ -73,12 +74,14 @@ class ModelFragment : Fragment(), Refreshable {
             binding.advancedToggle.setText(if (show) R.string.model_advanced_hide else R.string.model_advanced_show)
         }
         binding.trainButton.setOnClickListener { runTraining() }
+        binding.trainButton.setText(R.string.model_train)
+        binding.modelExplain.setText(R.string.model_explain)
 
         for (pose in PhonePose.entries) {
             val row = ItemMetricRowBinding.inflate(layoutInflater, binding.liveBars, false)
             row.metricName.text = pose.displayName
             binding.liveBars.addView(row.root)
-            liveRows[pose] = row
+            poseLiveRows[pose] = row
         }
         binding.liveModelToggle.check(R.id.liveUseBaseline)
         binding.liveModelToggle.addOnButtonCheckedListener { _, _, isChecked ->
@@ -100,7 +103,7 @@ class ModelFragment : Fragment(), Refreshable {
     override fun onDestroyView() {
         handler.removeCallbacks(liveTicker)
         collector.stop()
-        liveRows.clear()
+        poseLiveRows.clear()
         _binding = null
         super.onDestroyView()
     }
@@ -112,10 +115,7 @@ class ModelFragment : Fragment(), Refreshable {
 
     override fun refresh() {
         if (_binding == null) return
-        val typed = settings.taskKind == TaskKind.TYPED_WORD
-        binding.typedGateBanner.isVisible = typed
-        binding.trainButton.isEnabled = !typed && !training.get()
-
+        binding.trainButton.isEnabled = !training.get()
         val role = settings.clientRole
         val status = workflow.status(role)
         binding.modelDataStatus.text = when {
@@ -123,34 +123,29 @@ class ModelFragment : Fragment(), Refreshable {
             !status.ready -> getString(R.string.model_status_few, status.totalTrials, PoseWorkflow.MIN_TOTAL_EXAMPLES)
             else -> getString(R.string.model_status_ready, status.totalTrials)
         }
-
         val baseline = workflow.models.load(ModelSlot.LOCAL_BASELINE)
-        if (baseline == null) {
-            showEmptyResults()
-        } else {
+        if (baseline == null) showEmptyResults()
+        else {
             val report = workflow.evaluateHoldout(baseline)
-            val trainN = baseline.trainSampleCount
-            renderResults(baseline, report, trainN, report?.sampleCount ?: 0)
+            renderPoseResults(baseline, report, baseline.trainSampleCount, report?.sampleCount ?: 0)
         }
         loadLiveModel()
     }
 
     private fun runTraining() {
-        if (settings.taskKind == TaskKind.TYPED_WORD) return
         if (!training.compareAndSet(false, true)) return
-        val config = SensorConfig.entries[binding.sensorConfigSpinner.selectedItemPosition]
         binding.trainButton.isEnabled = false
         binding.trainProgress.isVisible = true
         executor.execute {
+            val config = SensorConfig.entries[binding.sensorConfigSpinner.selectedItemPosition]
             val outcome = runCatching { workflow.trainBaseline(config) }
             activity?.runOnUiThread {
                 training.set(false)
                 if (_binding == null) return@runOnUiThread
-                binding.trainButton.isEnabled = settings.taskKind != TaskKind.TYPED_WORD
+                binding.trainButton.isEnabled = true
                 binding.trainProgress.isVisible = false
-                outcome.onSuccess { o ->
-                    renderResults(o.bundle, o.report, o.trainCount, o.testCount)
-                    loadLiveModel()
+                outcome.onSuccess {
+                    refresh()
                 }.onFailure { e ->
                     binding.resultSummary.text = getString(R.string.model_train_failed, e.message ?: "unknown error")
                 }
@@ -166,7 +161,7 @@ class ModelFragment : Fragment(), Refreshable {
         binding.confusionLegend.isVisible = false
     }
 
-    private fun renderResults(bundle: PoseModelBundle, report: EvaluationReport?, trainN: Int, testN: Int) {
+    private fun renderPoseResults(bundle: PoseModelBundle, report: EvaluationReport?, trainN: Int, testN: Int) {
         binding.perClassContainer.removeAllViews()
         if (report == null) {
             binding.resultSummary.text = getString(R.string.model_results_no_test, trainN, bundle.sensorConfig.displayName)
@@ -210,7 +205,7 @@ class ModelFragment : Fragment(), Refreshable {
         if (!engine.hasModel) {
             binding.livePose.text = getString(R.string.model_live_no_model)
             binding.liveConfidence.text = ""
-            liveRows.values.forEach { it.metricBar.progress = 0; it.metricValue.text = "" }
+            poseLiveRows.values.forEach { it.metricBar.progress = 0; it.metricValue.text = "" }
         }
     }
 
@@ -232,7 +227,7 @@ class ModelFragment : Fragment(), Refreshable {
         }
     }
 
-    private fun renderLive() {
+    private fun renderPoseLive() {
         if (_binding == null || !engine.hasModel) return
         val pred = engine.predict()
         if (pred == null) {
@@ -242,7 +237,7 @@ class ModelFragment : Fragment(), Refreshable {
         }
         binding.livePose.text = pred.pose.displayName
         binding.liveConfidence.text = getString(R.string.model_live_confidence, pred.confidence * 100f)
-        for ((pose, row) in liveRows) {
+        for ((pose, row) in poseLiveRows) {
             val p = pred.probabilities[pose] ?: 0f
             row.metricBar.progress = (p * 100).toInt()
             row.metricValue.text = getString(R.string.percent_format, p * 100f)

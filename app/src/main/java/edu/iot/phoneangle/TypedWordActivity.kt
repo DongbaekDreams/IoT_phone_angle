@@ -43,6 +43,11 @@ class TypedWordActivity : AppCompatActivity() {
             TARGETS,
         )
 
+        intent.getStringExtra(EXTRA_TARGET)?.let { want ->
+            val idx = TARGETS.indexOf(want)
+            if (idx >= 0) binding.targetSpinner.setSelection(idx)
+        }
+
         binding.startButton.setOnClickListener { startTrial() }
         binding.stopButton.setOnClickListener { stopTrial(save = true) }
         binding.cancelButton.setOnClickListener { stopTrial(save = false) }
@@ -71,13 +76,13 @@ class TypedWordActivity : AppCompatActivity() {
             task = TrialTask.TYPED_WORD,
             clientRole = settings.clientRole,
             notes = "typed_word_shell",
-            sessionTag = settings.sessionTag,
         )
         setRecordingUi(true)
         binding.statusText.text = getString(R.string.typed_recording, label)
 
-        // Soft 12s auto-stop so trials don't run forever if user forgets Stop.
-        countdown = object : CountDownTimer(12_000L, 200L) {
+        // Soft auto-stop so trials don't run forever if user forgets Stop (idle sessions are longer).
+        val limitMs = if (label == "idle") 20_000L else 12_000L
+        countdown = object : CountDownTimer(limitMs, 200L) {
             override fun onTick(ms: Long) {
                 binding.statusText.text = getString(
                     R.string.typed_recording_count,
@@ -123,8 +128,7 @@ class TypedWordActivity : AppCompatActivity() {
     }
 
     private fun refreshCounts() {
-        val trials = store.loadAll(TrialTask.TYPED_WORD)
-        val byLabel = trials.groupingBy { it.label }.eachCount()
+        val byLabel = store.countByLabel(TrialTask.TYPED_WORD)
         binding.countsText.text = if (byLabel.isEmpty()) {
             getString(R.string.typed_counts_empty)
         } else {
@@ -133,12 +137,7 @@ class TypedWordActivity : AppCompatActivity() {
     }
 
     companion object {
-        val TARGETS = listOf(
-            "google.com",
-            "youtube.com",
-            "wikipedia.org",
-            "example.com",
-            "other",
-        )
+        const val EXTRA_TARGET = "target"
+        val TARGETS = listOf("google", "yahoo", "other", "idle")
     }
 }

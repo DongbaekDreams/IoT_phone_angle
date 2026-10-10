@@ -40,11 +40,27 @@ class GitHubTransport(
             r.code == 404 -> throw TransportException("Repo $repo not found, or the token cannot see it.")
             !r.ok -> throw TransportException("GitHub error ${r.code}: ${apiMessage(r)}")
         }
-        val json = JSONObject(r.body)
-        val canPush = json.optJSONObject("permissions")?.optBoolean("push", false) ?: false
+        // permissions.push can be true for the account while a fine-grained token still has
+        // Contents: read-only — prove Contents write by touching a tiny probe file.
+        try {
+            putFile(
+                path = "federation/.write-probe.json",
+                content = JSONObject()
+                    .put("ok", true)
+                    .put("at", System.currentTimeMillis())
+                    .toString(2),
+                message = "federation write probe",
+            )
+        } catch (e: TransportException) {
+            throw TransportException(
+                "Token can see $repo@$branch but cannot write files. " +
+                    "Recreate the fine-grained token with Contents: Read and write " +
+                    "(not read-only), for this exact repo. Detail: ${e.message}",
+                e,
+            )
+        }
         val s = status()
-        val access = if (canPush) "write access" else "READ-ONLY token (cannot send updates)"
-        return "Connected to $repo ($access). Latest global round ${s.latestGlobalRound}; " +
+        return "Connected to $repo@$branch (write access). Latest global round ${s.latestGlobalRound}; " +
             "${s.pendingClients.size} update(s) waiting for round ${s.pendingRound}."
     }
 
@@ -231,8 +247,11 @@ class GitHubTransport(
             if (existingSha != null) body.put("sha", existingSha)
             val r = Http.request("PUT", url(path), headers(), body.toString())
             if (r.ok) return
-            // 409/422: the file changed between our read and write. Re-read the sha and retry once.
-            if ((r.code == 409 || r.code == 422) && attempts < 3) continue
+            // Only retry sha races. Other 422s (bad branch, validation) are permanent.
+            val msg = apiMessage(r).lowercase()
+            val shaRace = (r.code == 409 || r.code == 422) &&
+                (msg.contains("sha") || msg.contains("conflict"))
+            if (shaRace && attempts < 3) continue
             failIfBad(r, "write $path")
             return
         }
@@ -243,7 +262,8 @@ class GitHubTransport(
         val hint = when (r.code) {
             401 -> " (bad token)"
             403 -> " (token lacks Contents: write, or rate limited)"
-            404 -> " (repo/branch not found or no access)"
+            404 -> " (repo/branch '$branch' not found or no access)"
+            422 -> " (validation failed — often wrong branch '$branch', or repo rules block API commits)"
             else -> ""
         }
         throw TransportException("GitHub: could not $what - ${r.code}$hint: ${apiMessage(r)}")
