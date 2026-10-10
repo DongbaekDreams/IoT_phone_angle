@@ -68,6 +68,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._send(200, data if data else {"empty": True})
                 elif path == "/baselines":
                     self._send(200, {"baselines": fedlib.list_baselines(ROOT)})
+                elif path == "/bindings":
+                    self._send(200, {"bindings": fedlib.list_bindings(ROOT)})
                 else:
                     self._send(404, {"error": "not found"})
         except fedlib.FedError as exc:
@@ -88,6 +90,9 @@ class Handler(BaseHTTPRequestHandler):
                 elif path == "/results":
                     fedlib.submit_result(ROOT, data)
                     self._send(200, {"message": "results stored"})
+                elif path == "/binding":
+                    fedlib.submit_binding(ROOT, data)
+                    self._send(200, {"message": "binding stored"})
                 elif path == "/reset":
                     src = ROOT / "federation"
                     if src.exists():

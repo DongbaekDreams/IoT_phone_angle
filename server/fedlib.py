@@ -32,6 +32,9 @@ RESULT_KEYS = {
     "evalCount", "accuracy", "macroF1", "perClass", "classes", "confusion", "sessionTags",
     "createdAtEpochMs",
 }
+BINDING_KEYS = {
+    "schema", "type", "clientId", "nationality", "role", "deviceKey", "createdAtEpochMs",
+}
 FORBIDDEN_KEYS = {
     "samples", "sample", "trial", "trials", "timestampns",
     "accel", "gyro", "gravity", "rotationvector", "features", "examples",
@@ -229,6 +232,23 @@ def submit_result(root: Path, payload: dict[str, Any]) -> None:
     kind = safe_name(payload.get("modelKind", "result"))
     stamp = int(payload.get("createdAtEpochMs") or time.time() * 1000)
     write_json(root / "results" / client / f"{stamp}-{kind}.json", payload)
+
+
+def list_bindings(root: Path) -> list[dict[str, Any]]:
+    d = root / "results" / "bindings"
+    return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(d.glob("*.json"))] if d.exists() else []
+
+
+def submit_binding(root: Path, payload: dict[str, Any]) -> None:
+    check_keys(payload, BINDING_KEYS)
+    if payload.get("type") != "binding":
+        raise FedError("type must be 'binding'")
+    client = safe_name(payload["clientId"])
+    path = root / "results" / "bindings" / f"{client}.json"
+    existing = read_json(path)
+    if existing is not None and existing.get("deviceKey") != payload.get("deviceKey"):
+        raise FedError(f"{client} is already filled by another phone", status=409)
+    write_json(path, payload)
 
 
 def status(root: Path) -> dict[str, Any]:

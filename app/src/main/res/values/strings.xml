@@ -3,34 +3,101 @@
     <string name="app_name">Phone Angle FL</string>
 
     <!-- Shell: top chips, bottom nav, menu -->
-    <string name="chip_mode">Sync: %1$s</string>
-    <string name="chip_round">Global round %1$d</string>
-    <string name="chip_round_none">No global yet</string>
+    <string name="chip_mode">%1$s</string>
+    <string name="chip_round">Round %1$d</string>
+    <string name="chip_round_none">No global model</string>
+    <string name="chip_unclaimed">Set up this phone</string>
+    <string name="nav_home">Home</string>
     <string name="nav_collect">Collect</string>
     <string name="nav_model">Model</string>
-    <string name="nav_federate">Federate</string>
-    <string name="nav_compare">Compare</string>
-    <string name="menu_switch_client">Which phone is this?</string>
+    <string name="nav_sync">Sync</string>
+    <string name="nav_results">Results</string>
+    <string name="nav_federate">Sync</string>
+    <string name="nav_compare">Results</string>
+
+    <string name="home_greeting_new">Let’s set up this phone</string>
+    <string name="home_greeting_named">Your progress</string>
+    <string name="home_subtitle">Work down the list — each step unlocks the next.</string>
+    <string name="home_checklist_section">Checklist</string>
+    <string name="home_next_cta">Next: %1$s</string>
+    <string name="home_step_claim">Claim this phone’s slot</string>
+    <string name="home_step_claim_todo">Pick a flag + Class or Personal phone. Locks this device.</string>
+    <string name="home_step_claim_done">Bound as %1$s</string>
+    <string name="home_step_sync">Link GitHub</string>
+    <string name="home_step_sync_todo">On Sync: paste a GitHub token and tap Test connection.</string>
+    <string name="home_step_sync_done">Linked via %1$s — open Sync to test or change</string>
+    <string name="home_step_collect">Collect poses</string>
+    <string name="home_step_collect_todo">%1$d trials so far — need primary poses + light cover</string>
+    <string name="home_step_collect_done">%1$d trials — coverage looks good</string>
+    <string name="home_step_train">Train local baseline</string>
+    <string name="home_step_train_todo">Train a pose model that never sees the global model</string>
+    <string name="home_step_train_done">Local baseline saved</string>
+    <string name="home_step_round">Run a federated round</string>
+    <string name="home_step_round_todo">Train from global → send update → aggregate → get global</string>
+    <string name="home_step_round_done">A global model is on this phone</string>
+    <string name="home_step_compare">Compare models</string>
+    <string name="home_step_compare_todo">Pull peer baseline and score local vs global</string>
+    <string name="home_step_compare_done">Ready to review Results</string>
+    <string name="home_step_typed">Collect typed-word samples</string>
+    <string name="home_step_typed_detail">Preview only — trials save for later; detection not built yet</string>
+    <string name="home_step_typed_count">%1$d typing trials saved (detection not built yet)</string>
+
+    <string name="task_poses">Poses</string>
+    <string name="task_typed">Typed words</string>
+    <string name="typed_preview_banner">Collection only — typed-word training and detection are not built yet. Trials stay on this phone for later.</string>
+    <string name="typed_gated_banner">Pose models only for now. Switch Collect to Poses (or pick Poses on Home) to train, sync rounds, or compare.</string>
+    <string name="typed_section_targets">Target string</string>
+    <string name="typed_section_counts">Saved typing trials</string>
+    <string name="menu_switch_client">Claim phone slot</string>
     <string name="menu_dev_tools">Dev tools</string>
-    <string name="dialog_phone_title">Which phone is this?</string>
-    <string name="dialog_phone_message">🇨🇦 Canada and 🇵🇪 Peru are the two sites. Class / Personal is the pose split (Class: screen up/down + portrait up; Personal: portrait down + landscapes).\n\nIf Peru only has one phone, pick Peru Class or Peru Personal and leave the other unused. Setting a phone also fills the Collect location tag.</string>
+    <string name="dialog_slots_title">Claim a phone slot</string>
+    <string name="dialog_slots_message">Pick one empty slot. Claiming locks this phone to that slot forever.\n\nFlag = whose phone. Class / Personal = which poses this phone mainly collects.</string>
+    <string name="dialog_slots_locked_message">This phone is already bound. Empty slots below are for the other phones. Use “Share my claim” after Git/LAN is set up so they see this slot as filled.</string>
+    <string name="chip_identity_locked">%1$s</string>
+    <string name="slots_hint_synced">Synced: %1$d slot(s) claimed across phones.</string>
+    <string name="slots_hint_offline">Could not sync yet — claim still works on this phone. Connect Git/LAN so others see filled slots.</string>
+    <string name="slots_hint_locked">Bound on this device. No override.</string>
+    <string name="slot_empty">%1$s — empty · tap to claim</string>
+    <string name="slot_mine">%1$s — filled (this phone)</string>
+    <string name="slot_taken">%1$s — filled (other phone)</string>
+    <string name="slot_claim_title">Bind this phone?</string>
+    <string name="slot_claim_message">Lock this phone to %1$s forever? You will not be able to switch it to another slot.</string>
+    <string name="slot_claim_confirm">Claim and lock</string>
+    <string name="slot_claiming">Claiming…</string>
+    <string name="slot_claimed">Bound to %1$s</string>
+    <string name="slot_claimed_offline">Bound to %1$s on this phone. Share the claim later so other phones see it filled.</string>
+    <string name="slot_publish">Share my claim (Git/LAN)</string>
+    <string name="slot_published">Claim shared</string>
+    <string name="dialog_phone_title">Who owns this phone?</string>
+    <string name="dialog_phone_message">Flags are nationalities (so we can tell phones apart without names), not physical locations.</string>
+    <string name="dialog_nationality_section">Nationality</string>
+    <string name="dialog_role_section">This phone</string>
+    <string name="nationality_canada">🇨🇦 Canada</string>
+    <string name="nationality_peru">🇵🇪 Peru</string>
+    <string name="role_class">Class phone</string>
+    <string name="role_personal">Personal phone</string>
+    <string name="dialog_phone_preview">This phone: %1$s\nId: %2$s</string>
     <string name="percent_format">%1$.0f%%</string>
 
     <!-- Collect -->
-    <string name="collect_tag_hint">Location tag (both phones at this site)</string>
-    <string name="collect_tag_helper">Use canada on both 🇨🇦 phones and peru on both 🇵🇪 phones. Same tag at a site, different tags across sites.</string>
+    <string name="collect_tag_hint">Room / session tag (optional)</string>
+    <string name="collect_tag_helper">Where you are, e.g. dorm or lab</string>
     <string name="collect_status">%1$s · %2$d trials on this phone</string>
-    <string name="collect_guidance_done">Coverage looks good. Add more people or rooms for better results.</string>
+    <string name="collect_guidance_done">Coverage looks good. Add more rooms (different tags) for better results.</string>
     <string name="collect_guidance_need">Still needed: %1$s</string>
-    <string name="collect_tap_section">Tap a pose, then hold the phone that way for 2 seconds</string>
+    <string name="collect_tap_section">Tap a pose, then hold still</string>
     <string name="collect_count_primary">★ %1$d trials</string>
     <string name="collect_count_cover">%1$d trials</string>
-    <string name="collect_legend">★ = main pose for this Class / Personal phone. Others only need a few trials for evaluation.</string>
+    <string name="collect_legend">★ = main poses for this phone. Only face-down and upside-down use a get-ready countdown.</string>
     <string name="collect_matches_now">Matches now</string>
+    <string name="collect_ready_title">Get ready: %1$s</string>
+    <string name="collect_ready_detail">Flip into position… recording in %1$d</string>
     <string name="collect_recording_title">Recording: %1$s</string>
-    <string name="collect_recording_samples">%1$d samples</string>
+    <string name="collect_recording_samples">%1$d samples — hold still</string>
+    <string name="collect_cancel">Cancel</string>
     <string name="collect_mismatch_title">Phone is not in that pose</string>
     <string name="collect_mismatch_message">The phone does not look like \"%1$s\" right now. Recording anyway would add a mislabeled trial.</string>
+    <string name="collect_mismatch_after_ready">After the countdown, the phone still does not look like \"%1$s\". Record anyway?</string>
     <string name="collect_record_anyway">Record anyway</string>
 
     <!-- Model -->
@@ -59,13 +126,15 @@
     <string name="model_live_confidence">Confidence %1$.0f%%</string>
 
     <!-- Federate -->
-    <string name="fed_connection_section">Sync mode</string>
-    <string name="fed_mode_git">Git</string>
+    <string name="fed_connection_section">Link phones</string>
+    <string name="fed_mode_git">GitHub</string>
     <string name="fed_mode_lan">LAN</string>
-    <string name="fed_mode_git_hint">Weights go through the GitHub repo. Works from different rooms; each phone takes its turn.</string>
-    <string name="fed_mode_lan_hint">Weights go to the laptop server on the same Wi-Fi. Best when both phones are together.</string>
+    <string name="fed_mode_git_hint">1. Repo is already filled in.\n2. Create a fine-grained token (Contents: Read and write on this repo only).\n3. Paste the token below → Test connection.</string>
+    <string name="fed_mode_lan_hint">Same Wi-Fi as the laptop. Start the server, put the laptop IP below, then Test connection.</string>
+    <string name="fed_get_token">Open GitHub → create token</string>
+    <string name="fed_token_help">Token stays on this phone only. Never commit it.</string>
     <string name="fed_refresh">Refresh</string>
-    <string name="fed_settings">Connection settings</string>
+    <string name="fed_settings">Claim phone slot</string>
     <string name="fed_status_local">%1$s\nGlobal model on this phone: %2$s</string>
     <string name="fed_no_global">none yet</string>
     <string name="fed_global_round">round %1$d</string>
@@ -126,22 +195,23 @@
     <!-- Dev tools -->
     <string name="dev_title">Dev tools</string>
     <string name="dev_connection_section">Connection</string>
-    <string name="dev_client_id">Client id (prefer canada-class / canada-personal / peru-class / peru-personal)</string>
+    <string name="dev_client_id">Client id (usually set by nationality + Class/Personal)</string>
     <string name="dev_server_url">LAN server URL (http://laptop-ip:8080)</string>
     <string name="dev_github_repo">GitHub repo (owner/name)</string>
     <string name="dev_github_branch">Branch</string>
-    <string name="dev_github_token">GitHub token</string>
-    <string name="dev_token_help">Use a fine-grained token limited to this one repo with Contents read/write. It stays on this phone only.</string>
+    <string name="dev_github_token">Paste GitHub token</string>
+    <string name="dev_token_help">Fine-grained token, this repo only, Contents: Read and write. Stays on this phone.</string>
     <string name="dev_save">Save</string>
     <string name="dev_saved">Saved</string>
-    <string name="dev_test">Test connection (current sync mode)</string>
+    <string name="dev_test">Test connection</string>
     <string name="dev_testing">Testing…</string>
     <string name="dev_test_ok">OK: %1$s</string>
     <string name="dev_test_failed">Failed: %1$s</string>
     <string name="dev_tools_section">Tools</string>
     <string name="dev_open_hud">Live orientation HUD</string>
     <string name="dev_open_experiments">Experiments and synthetic data</string>
-    <string name="dev_open_typed">Typed-word trials (extra credit)</string>
+    <string name="dev_open_typed">Typed-word trials → Collect tab</string>
+    <string name="dev_typed_on_collect">Switched Collect to Typed words. Use the Collect tab.</string>
     <string name="dev_open_hud_settings">HUD settings</string>
     <string name="dev_danger_section">Danger zone</string>
     <string name="dev_clear_trials">Delete all trials on this phone</string>

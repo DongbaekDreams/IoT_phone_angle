@@ -12,8 +12,8 @@ import edu.iot.phoneangle.store.LocalDatasetStore
 import java.util.concurrent.Executors
 
 /**
- * Rarely needed things: connection settings, extra tools (HUD, experiments, typed words)
- * and destructive resets. Everything routine lives in the four main tabs.
+ * Rarely needed things: connection settings, HUD, experiments, and destructive resets.
+ * Routine work lives on Home / Collect / Model / Sync / Results. Typed-word collection is on Collect.
  */
 class DevToolsActivity : AppCompatActivity() {
 
@@ -43,7 +43,11 @@ class DevToolsActivity : AppCompatActivity() {
 
         binding.openHudButton.setOnClickListener { open(MainActivity::class.java) }
         binding.openExperimentsButton.setOnClickListener { open(ExperimentsActivity::class.java) }
-        binding.openTypedButton.setOnClickListener { open(TypedWordActivity::class.java) }
+        binding.openTypedButton.setOnClickListener {
+            ProjectSettings(this).taskKind = TaskKind.TYPED_WORD
+            Toast.makeText(this, R.string.dev_typed_on_collect, Toast.LENGTH_LONG).show()
+            finish()
+        }
         binding.openHudSettingsButton.setOnClickListener { open(SettingsActivity::class.java) }
 
         binding.clearTrialsButton.setOnClickListener {

@@ -9,73 +9,86 @@ enum class TransportMode(val label: String) {
     LAN("LAN"),
 }
 
+/** Which experiment the Collect / Model / Results tabs are aimed at. */
+enum class TaskKind(val label: String) {
+    POSE("Poses"),
+    TYPED_WORD("Typed words");
+
+    companion object {
+        fun fromId(id: String): TaskKind =
+            entries.find { it.name == id } ?: POSE
+    }
+}
+
 /**
- * App-private prefs: client identity, transport settings, collection session tag.
+ * App-private prefs: nationality + Class/Personal identity, transport, room tag.
  * The GitHub token lives here (never in the repo); backups are disabled in the manifest.
  */
 class ProjectSettings(context: Context) {
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    /**
+     * 🇨🇦 / 🇵🇪 nationality label for this device (who owns the phone). Saved on-device.
+     * Not a room/location — that is [sessionTag].
+     */
+    var nationality: Nationality
+        get() {
+            val stored = prefs.getString(KEY_NATIONALITY, null)?.let { Nationality.fromId(it) }
+            if (stored != null) return stored
+            // Migrate from older client ids / default to Canada.
+            val fromId = PhoneIdentity.fromLegacyClientId(prefs.getString(KEY_CLIENT_ID, "") ?: "")
+            return fromId?.first ?: Nationality.CANADA
+        }
+        set(value) {
+            prefs.edit().putString(KEY_NATIONALITY, value.id).apply()
+            syncClientId()
+        }
+
+    /** Class (= Client A) or Personal (= Client B). Saved on-device. */
     var clientRole: ClientRole
         get() = prefs.getString(KEY_CLIENT_ROLE, ClientRole.CLIENT_A.name)
             ?.let { runCatching { ClientRole.valueOf(it) }.getOrNull() }
             ?: ClientRole.CLIENT_A
         set(value) {
             prefs.edit().putString(KEY_CLIENT_ROLE, value.name).apply()
+            syncClientId()
         }
 
     /**
-     * Stable, unique id used in file names/payloads. Several phones can share a role (A or B),
-     * so the default is `client-a-xxxx` with a random suffix generated once per install.
-     * The bare legacy defaults (`client-a`, `client-b`) are replaced because two phones would collide.
+     * Stable id used in federation file names. Derived from nationality + role, e.g. `canada-class`.
+     * Writable for Dev tools overrides; prefer setting [nationality] / [clientRole].
      */
     var clientId: String
         get() {
-            val stored = prefs.getString(KEY_CLIENT_ID, null)?.takeIf { it.isNotBlank() }
-            if (stored != null && stored !in LEGACY_IDS) return stored
-            val fresh = defaultClientId(clientRole)
-            prefs.edit().putString(KEY_CLIENT_ID, fresh).apply()
-            return fresh
+            val derived = PhoneIdentity.clientId(nationality, clientRole)
+            val stored = prefs.getString(KEY_CLIENT_ID, null)?.takeIf { it.isNotBlank() && it !in LEGACY_IDS }
+            if (stored == null || PhoneIdentity.fromLegacyClientId(stored) != null) {
+                if (stored != derived) prefs.edit().putString(KEY_CLIENT_ID, derived).apply()
+                return derived
+            }
+            return stored
         }
         set(value) {
             val clean = sanitizeId(value)
-            prefs.edit().putString(KEY_CLIENT_ID, clean.ifBlank { defaultClientId(clientRole) }).apply()
+            prefs.edit().putString(KEY_CLIENT_ID, clean.ifBlank {
+                PhoneIdentity.clientId(nationality, clientRole)
+            }).apply()
         }
 
-    /** Human label for the top chip: preset flag name, or a plain fallback. */
-    fun displayLabel(): String {
-        val preset = PhonePreset.fromClientId(clientId)
-        if (preset != null && clientId != preset.clientId) clientId = preset.clientId
-        return preset?.displayName ?: "${clientRole.label} · $clientId"
+    fun displayLabel(): String = PhoneIdentity.displayLabel(nationality, clientRole)
+
+    /** Set both identity toggles and refresh the derived client id. Does not touch the room tag. */
+    fun applyIdentity(nationality: Nationality, role: ClientRole) {
+        prefs.edit()
+            .putString(KEY_NATIONALITY, nationality.id)
+            .putString(KEY_CLIENT_ROLE, role.name)
+            .putString(KEY_CLIENT_ID, PhoneIdentity.clientId(nationality, role))
+            .apply()
     }
 
-    /** Assign this phone a named slot (🇨🇦/🇵🇪 × Class/Personal). Also suggests the location tag. */
-    fun applyPreset(preset: PhonePreset) {
-        clientRole = preset.role
-        clientId = preset.clientId
-        if (sessionTag.isBlank() || sessionTag in PhonePreset.entries.map { it.locationTag }) {
-            sessionTag = preset.locationTag
-        }
-    }
-
-    /**
-     * Switch role only. Named presets flip A↔B within the same country; auto-generated ids
-     * keep their random suffix; custom ids are left alone.
-     */
-    fun switchRole(role: ClientRole) {
-        val current = clientId
-        val preset = PhonePreset.fromClientId(current)
-        if (preset != null) {
-            val match = PhonePreset.entries.find { it.country == preset.country && it.role == role }
-            if (match != null) {
-                applyPreset(match)
-                return
-            }
-        }
-        val auto = AUTO_ID.matchEntire(current)
-        clientRole = role
-        if (auto != null) clientId = "${rolePrefix(role)}-${auto.groupValues[2]}"
+    private fun syncClientId() {
+        prefs.edit().putString(KEY_CLIENT_ID, PhoneIdentity.clientId(nationality, clientRole)).apply()
     }
 
     var transportMode: TransportMode
@@ -86,14 +99,12 @@ class ProjectSettings(context: Context) {
             prefs.edit().putString(KEY_MODE, value.name).apply()
         }
 
-    /** Base URL for the FedAvg server, e.g. http://192.168.1.10:8080 */
     var serverBaseUrl: String
         get() = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         set(value) {
             prefs.edit().putString(KEY_SERVER_URL, value.trim().trimEnd('/')).apply()
         }
 
-    /** `owner/repo` that stores federation/ and results/. */
     var githubRepo: String
         get() = prefs.getString(KEY_GH_REPO, DEFAULT_GITHUB_REPO) ?: DEFAULT_GITHUB_REPO
         set(value) {
@@ -112,15 +123,23 @@ class ProjectSettings(context: Context) {
             prefs.edit().putString(KEY_GH_TOKEN, value.trim()).apply()
         }
 
-    /** Person/room label stamped onto newly recorded trials. */
+    /** Room / session label stamped onto newly recorded trials (independent of nationality). */
     var sessionTag: String
         get() = prefs.getString(KEY_SESSION_TAG, "") ?: ""
         set(value) {
             prefs.edit().putString(KEY_SESSION_TAG, value.trim()).apply()
         }
 
+    /** Active experiment for Collect / Model / Results. Typed-word ML is not ready yet. */
+    var taskKind: TaskKind
+        get() = TaskKind.fromId(prefs.getString(KEY_TASK, TaskKind.POSE.name) ?: TaskKind.POSE.name)
+        set(value) {
+            prefs.edit().putString(KEY_TASK, value.name).apply()
+        }
+
     companion object {
         private const val PREFS = "project_settings"
+        private const val KEY_NATIONALITY = "nationality"
         private const val KEY_CLIENT_ROLE = "client_role"
         private const val KEY_CLIENT_ID = "client_id_v2"
         private const val KEY_MODE = "transport_mode"
@@ -129,21 +148,15 @@ class ProjectSettings(context: Context) {
         private const val KEY_GH_BRANCH = "github_branch"
         private const val KEY_GH_TOKEN = "github_token"
         private const val KEY_SESSION_TAG = "session_tag"
+        private const val KEY_TASK = "task_kind"
 
-        const val DEFAULT_SERVER_URL = "http://10.0.2.2:8080" // emulator -> host loopback
+        const val DEFAULT_SERVER_URL = "http://10.0.2.2:8080"
         const val DEFAULT_GITHUB_REPO = "DongbaekDreams/IoT_phone_angle"
 
         private val LEGACY_IDS = setOf("client-a", "client-b")
-        private val AUTO_ID = Regex("^(client-[ab])-([a-z0-9]{4})$")
 
-        private fun rolePrefix(role: ClientRole) = if (role == ClientRole.CLIENT_A) "client-a" else "client-b"
-
-        /** Fresh unique id for [role], e.g. `client-a-x7k2`. */
-        fun defaultClientId(role: ClientRole): String {
-            val alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
-            val suffix = (1..4).map { alphabet.random() }.joinToString("")
-            return "${rolePrefix(role)}-$suffix"
-        }
+        fun defaultClientId(role: ClientRole): String =
+            PhoneIdentity.clientId(Nationality.CANADA, role)
 
         fun sanitizeId(raw: String): String =
             raw.trim().lowercase().replace(Regex("[^a-z0-9_-]+"), "-").trim('-')

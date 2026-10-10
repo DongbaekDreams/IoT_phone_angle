@@ -1,6 +1,7 @@
 package edu.iot.phoneangle.federation
 
 import edu.iot.phoneangle.ProjectSettings
+import edu.iot.phoneangle.SlotBinding
 import edu.iot.phoneangle.TransportMode
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -45,6 +46,11 @@ interface FederationTransport {
     fun fetchBaselines(): List<ModelPayload>
 
     fun putResult(result: ResultPayload)
+
+    /** Phone ↔ identity-slot claims (marks a Class/Personal slot filled). */
+    fun fetchBindings(): List<SlotBinding>
+
+    fun putBinding(binding: SlotBinding)
 
     companion object {
         fun create(settings: ProjectSettings): FederationTransport = when (settings.transportMode) {

@@ -1,5 +1,7 @@
 package edu.iot.phoneangle.ui
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,9 +10,11 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import edu.iot.phoneangle.R
+import edu.iot.phoneangle.TaskKind
 import edu.iot.phoneangle.TransportMode
 import edu.iot.phoneangle.databinding.FragmentFederateBinding
 import edu.iot.phoneangle.federation.FederationOps
+import edu.iot.phoneangle.federation.FederationTransport
 import edu.iot.phoneangle.federation.RemoteStatus
 import edu.iot.phoneangle.federation.TransportException
 import java.text.SimpleDateFormat
@@ -35,8 +39,8 @@ object ActivityLog {
 }
 
 /**
- * Tab 3 - one federated round in three numbered steps. Works over Git (async, any network)
- * or a LAN server. Only model weights, counts and metrics ever leave the phone.
+ * Sync tab - connection settings + one federated pose round (Git or LAN).
+ * Typed-word federation is not available yet.
  */
 class FederateFragment : Fragment(), Refreshable {
 
@@ -66,12 +70,23 @@ class FederateFragment : Fragment(), Refreshable {
             refreshRemoteStatus()
         }
 
+        binding.serverUrlInput.setText(ops.settings.serverBaseUrl)
+        binding.githubRepoInput.setText(ops.settings.githubRepo)
+        binding.githubTokenInput.setText(ops.settings.githubToken)
+
         binding.refreshStatusButton.setOnClickListener { refreshRemoteStatus() }
-        binding.settingsButton.setOnClickListener { (activity as? ShellHost)?.openDevTools() }
+        binding.settingsButton.setOnClickListener { (activity as? ShellHost)?.openIdentityDialog() }
+        binding.getTokenButton.setOnClickListener { openTokenPage() }
+        binding.testConnectionButton.setOnClickListener { testConnection() }
         binding.step1Button.setOnClickListener { stepTrain() }
         binding.step2Button.setOnClickListener { stepSend() }
         binding.step3Button.setOnClickListener { stepGetGlobal() }
         binding.aggregateButton.setOnClickListener { stepAggregate() }
+    }
+
+    override fun onPause() {
+        saveConnectionFields()
+        super.onPause()
     }
 
     override fun onResume() {
@@ -93,9 +108,12 @@ class FederateFragment : Fragment(), Refreshable {
     override fun refresh() {
         if (_binding == null) return
         val s = ops.settings
-        binding.modeHint.setText(
-            if (s.transportMode == TransportMode.GIT) R.string.fed_mode_git_hint else R.string.fed_mode_lan_hint,
-        )
+        val typed = s.taskKind == TaskKind.TYPED_WORD
+        binding.typedGateBanner.isVisible = typed
+        val git = s.transportMode == TransportMode.GIT
+        binding.modeHint.setText(if (git) R.string.fed_mode_git_hint else R.string.fed_mode_lan_hint)
+        binding.gitFields.isVisible = git
+        binding.serverUrlLayout.isVisible = !git
         val global = ops.localGlobalRound()
         val local = getString(
             R.string.fed_status_local,
@@ -104,6 +122,48 @@ class FederateFragment : Fragment(), Refreshable {
         )
         binding.fedStatus.text = if (remoteText.isBlank()) local else "$local\n\n$remoteText"
         binding.fedLog.text = ActivityLog.text().ifBlank { getString(R.string.fed_log_empty) }
+        setRoundButtonsEnabled(!typed && !busy.get())
+    }
+
+    private fun saveConnectionFields() {
+        if (_binding == null) return
+        ops.settings.serverBaseUrl = binding.serverUrlInput.text?.toString().orEmpty()
+        ops.settings.githubRepo = binding.githubRepoInput.text?.toString().orEmpty()
+        ops.settings.githubToken = binding.githubTokenInput.text?.toString().orEmpty()
+    }
+
+    private fun openTokenPage() {
+        val uri = Uri.parse(
+            "https://github.com/settings/personal-access-tokens/new",
+        )
+        startActivity(Intent(Intent.ACTION_VIEW, uri))
+    }
+
+    private fun testConnection() {
+        saveConnectionFields()
+        binding.testConnectionButton.isEnabled = false
+        binding.testConnectionResult.setText(R.string.dev_testing)
+        executor.execute {
+            val message = runCatching { FederationTransport.create(ops.settings).ping() }
+                .fold(
+                    onSuccess = { getString(R.string.dev_test_ok, it) },
+                    onFailure = { getString(R.string.dev_test_failed, it.message ?: it.javaClass.simpleName) },
+                )
+            activity?.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                binding.testConnectionButton.isEnabled = true
+                binding.testConnectionResult.text = message
+                (activity as? ShellHost)?.refreshChips()
+                refreshRemoteStatus()
+            }
+        }
+    }
+
+    private fun setRoundButtonsEnabled(enabled: Boolean) {
+        binding.step1Button.isEnabled = enabled
+        binding.step2Button.isEnabled = enabled
+        binding.step3Button.isEnabled = enabled
+        binding.aggregateButton.isEnabled = enabled
     }
 
     private fun refreshRemoteStatus() {
@@ -225,10 +285,9 @@ class FederateFragment : Fragment(), Refreshable {
     }
 
     private fun setButtonsEnabled(enabled: Boolean) {
-        binding.step1Button.isEnabled = enabled
-        binding.step2Button.isEnabled = enabled
-        binding.step3Button.isEnabled = enabled
-        binding.aggregateButton.isEnabled = enabled
+        val typed = ops.settings.taskKind == TaskKind.TYPED_WORD
+        setRoundButtonsEnabled(enabled && !typed)
         binding.refreshStatusButton.isEnabled = enabled
+        binding.testConnectionButton.isEnabled = enabled
     }
 }

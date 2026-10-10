@@ -11,6 +11,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import edu.iot.phoneangle.ProjectSettings
 import edu.iot.phoneangle.R
+import edu.iot.phoneangle.TaskKind
 import edu.iot.phoneangle.data.PhonePose
 import edu.iot.phoneangle.databinding.FragmentModelBinding
 import edu.iot.phoneangle.databinding.ItemMetricRowBinding
@@ -111,6 +112,10 @@ class ModelFragment : Fragment(), Refreshable {
 
     override fun refresh() {
         if (_binding == null) return
+        val typed = settings.taskKind == TaskKind.TYPED_WORD
+        binding.typedGateBanner.isVisible = typed
+        binding.trainButton.isEnabled = !typed && !training.get()
+
         val role = settings.clientRole
         val status = workflow.status(role)
         binding.modelDataStatus.text = when {
@@ -131,6 +136,7 @@ class ModelFragment : Fragment(), Refreshable {
     }
 
     private fun runTraining() {
+        if (settings.taskKind == TaskKind.TYPED_WORD) return
         if (!training.compareAndSet(false, true)) return
         val config = SensorConfig.entries[binding.sensorConfigSpinner.selectedItemPosition]
         binding.trainButton.isEnabled = false
@@ -140,7 +146,7 @@ class ModelFragment : Fragment(), Refreshable {
             activity?.runOnUiThread {
                 training.set(false)
                 if (_binding == null) return@runOnUiThread
-                binding.trainButton.isEnabled = true
+                binding.trainButton.isEnabled = settings.taskKind != TaskKind.TYPED_WORD
                 binding.trainProgress.isVisible = false
                 outcome.onSuccess { o ->
                     renderResults(o.bundle, o.report, o.trainCount, o.testCount)

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
+        android:id="@+id/nav_home"
+        android:icon="@drawable/ic_nav_home"
+        android:title="@string/nav_home" />
+    <item
         android:id="@+id/nav_collect"
         android:icon="@drawable/ic_nav_collect"
         android:title="@string/nav_collect" />
@@ -9,11 +13,11 @@
         android:icon="@drawable/ic_nav_model"
         android:title="@string/nav_model" />
     <item
-        android:id="@+id/nav_federate"
+        android:id="@+id/nav_sync"
         android:icon="@drawable/ic_nav_federate"
-        android:title="@string/nav_federate" />
+        android:title="@string/nav_sync" />
     <item
-        android:id="@+id/nav_compare"
+        android:id="@+id/nav_results"
         android:icon="@drawable/ic_nav_compare"
-        android:title="@string/nav_compare" />
+        android:title="@string/nav_results" />
 </menu>

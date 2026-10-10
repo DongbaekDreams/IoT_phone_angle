@@ -1,5 +1,7 @@
 package edu.iot.phoneangle.federation
 
+import edu.iot.phoneangle.BindingCodec
+import edu.iot.phoneangle.SlotBinding
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
@@ -137,6 +139,27 @@ class GitHubTransport(
             content = PayloadCodec.toJson(result).toString(2),
             message = "${result.modelKind} results from ${result.clientId}",
         )
+    }
+
+    override fun fetchBindings(): List<SlotBinding> {
+        requireConfigured()
+        return listNames("results/bindings")
+            .filter { it.endsWith(".json") }
+            .mapNotNull { name ->
+                getFile("results/bindings/$name")?.text?.let { BindingCodec.fromJson(JSONObject(it)) }
+            }
+    }
+
+    override fun putBinding(binding: SlotBinding) {
+        requireConfigured()
+        val path = "results/bindings/${binding.clientId}.json"
+        getFile(path)?.text?.let { text ->
+            val existing = BindingCodec.fromJson(JSONObject(text))
+            if (existing.deviceKey != binding.deviceKey) {
+                throw TransportException("${binding.slot.displayName} is already filled by another phone.")
+            }
+        }
+        putFile(path, BindingCodec.toJson(binding).toString(2), "bind ${binding.clientId}")
     }
 
     // --- repo layout -------------------------------------------------------------------

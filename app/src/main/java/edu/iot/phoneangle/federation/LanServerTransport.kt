@@ -1,5 +1,7 @@
 package edu.iot.phoneangle.federation
 
+import edu.iot.phoneangle.BindingCodec
+import edu.iot.phoneangle.SlotBinding
 import edu.iot.phoneangle.ml.ModelCodec
 import org.json.JSONArray
 import org.json.JSONObject
@@ -56,6 +58,16 @@ class LanServerTransport(baseUrl: String) : FederationTransport {
 
     override fun putResult(result: ResultPayload) {
         postJson("/results", PayloadCodec.toJson(result))
+    }
+
+    override fun fetchBindings(): List<SlotBinding> {
+        val obj = getJson("/bindings") ?: return emptyList()
+        val arr = obj.optJSONArray("bindings") ?: JSONArray()
+        return List(arr.length()) { BindingCodec.fromJson(arr.getJSONObject(it)) }
+    }
+
+    override fun putBinding(binding: SlotBinding) {
+        postJson("/binding", BindingCodec.toJson(binding))
     }
 
     private fun getJson(path: String): JSONObject? {

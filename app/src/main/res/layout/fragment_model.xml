@@ -15,6 +15,18 @@
         android:paddingBottom="20dp">
 
         <TextView
+            android:id="@+id/typedGateBanner"
+            style="@style/Text.App.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_angle_card"
+            android:padding="12dp"
+            android:text="@string/typed_gated_banner"
+            android:textColor="@color/ink"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/modelDataStatus"
             style="@style/Text.App.Title"
             android:layout_width="match_parent"

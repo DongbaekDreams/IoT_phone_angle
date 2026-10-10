@@ -3,33 +3,44 @@ package edu.iot.phoneangle
 import edu.iot.phoneangle.data.ClientRole
 
 /**
- * Named phones for the data campaign. Flags identify the site; Class / Personal is the
- * non-IID role (course Client A / Client B). File paths use the ASCII [clientId] only.
- *
- * Peru may only have one phone; leave the unused Peru slot unset.
+ * Nationality labels for distinguishing who owns which phone, without putting real names
+ * in the UI or federation files. Not a physical location — use Collect's room tag for that.
  */
-enum class PhonePreset(
+enum class Nationality(
+    val id: String,
     val flag: String,
-    val country: String,
-    val role: ClientRole,
-    val clientId: String,
-    /** Suggested Collect location tag for both phones at this site. */
-    val locationTag: String,
-    /** Older ids still recognized so an already-set phone keeps its preset. */
-    private val legacyIds: Set<String> = emptySet(),
+    val displayName: String,
 ) {
-    CANADA_CLASS("🇨🇦", "Canada", ClientRole.CLIENT_A, "canada-class", "canada", setOf("canada-a")),
-    CANADA_PERSONAL("🇨🇦", "Canada", ClientRole.CLIENT_B, "canada-personal", "canada", setOf("canada-b")),
-    PERU_CLASS("🇵🇪", "Peru", ClientRole.CLIENT_A, "peru-class", "peru", setOf("peru-a")),
-    PERU_PERSONAL("🇵🇪", "Peru", ClientRole.CLIENT_B, "peru-personal", "peru", setOf("peru-b"));
-
-    /** Chip / dialog label, e.g. "🇨🇦 Canada Class". */
-    val displayName: String get() = "$flag $country ${role.label}"
+    CANADA("canada", "🇨🇦", "Canada"),
+    PERU("peru", "🇵🇪", "Peru");
 
     companion object {
-        fun fromClientId(id: String): PhonePreset? {
-            val clean = ProjectSettings.sanitizeId(id)
-            return entries.find { it.clientId == clean || clean in it.legacyIds }
-        }
+        fun fromId(id: String): Nationality? =
+            entries.find { it.id == ProjectSettings.sanitizeId(id) }
+    }
+}
+
+/** Maps a nationality + Class/Personal role to the stable federation client id. */
+object PhoneIdentity {
+    fun clientId(nationality: Nationality, role: ClientRole): String =
+        "${nationality.id}-${if (role == ClientRole.CLIENT_A) "class" else "personal"}"
+
+    fun displayLabel(nationality: Nationality, role: ClientRole): String =
+        "${nationality.flag} ${role.label}"
+
+    /** Older client ids from earlier naming schemes. */
+    fun fromLegacyClientId(id: String): Pair<Nationality, ClientRole>? {
+        val clean = ProjectSettings.sanitizeId(id)
+        val map = mapOf(
+            "canada-class" to (Nationality.CANADA to ClientRole.CLIENT_A),
+            "canada-personal" to (Nationality.CANADA to ClientRole.CLIENT_B),
+            "peru-class" to (Nationality.PERU to ClientRole.CLIENT_A),
+            "peru-personal" to (Nationality.PERU to ClientRole.CLIENT_B),
+            "canada-a" to (Nationality.CANADA to ClientRole.CLIENT_A),
+            "canada-b" to (Nationality.CANADA to ClientRole.CLIENT_B),
+            "peru-a" to (Nationality.PERU to ClientRole.CLIENT_A),
+            "peru-b" to (Nationality.PERU to ClientRole.CLIENT_B),
+        )
+        return map[clean]
     }
 }

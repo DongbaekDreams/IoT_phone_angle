@@ -16,37 +16,47 @@ CSC 8223 — six-pose phone classification, local-first training, then FedAvg. R
 4. Prefer physical phones; an emulator works for synthetic-data dry runs.
 5. Click **Run** (or `./gradlew :app:installDebug` with a phone connected).
 
-### The four tabs
+### The five tabs
 
 | Tab | What it does |
 |-----|--------------|
-| **Collect** | Tap a pose card, hold the phone that way for 2 s. Set the *Location tag* to the same short name on both phones in that room. The card highlights when the phone already matches that pose. |
-| **Model** | Train this phone's **local baseline** (never sees the global model), see held-out accuracy / confusion matrix, try live predictions. |
-| **Federate** | One round in three steps: **1 Train from global**, **2 Send update**, **3 Get new global**. Switch between **Git** and **LAN**. |
-| **Compare** | Local vs peer vs global, all scored on this phone's held-out trials. With several peers you choose which phone's baseline to compare against (opposite role is listed first). |
+| **Home** | Checklist for this phone: claim slot → connect sync → collect → train → federate → compare. Next-step CTA jumps to the right place. |
+| **Collect** | **Poses** (main): tap a pose, flip during get-ready if needed, hold 2 s. **Typed words** (preview): record sensor trials while typing a target string — training/detection not built yet. |
+| **Model** | Train this phone's **local baseline** (never sees the global model), held-out accuracy / confusion, live predictions. Pose only; typed mode shows a not-ready banner. |
+| **Sync** | Connection (Git / LAN + URL / token + Test) and one federated round: **1 Train from global**, **2 Send update**, **3 Get new global** (+ Aggregate). |
+| **Results** | Local vs peer vs global on this phone's held-out trials. Pose only while typed ML is unfinished. |
 
-The top bar shows which phone this is (🇨🇦/🇵🇪 × Class/Personal), sync mode and current global round. **⋮ → Dev tools** holds connection settings, the orientation HUD, experiments (ablations, room-generalization), typed-word trials and resets.
+The top bar shows nationality + Class/Personal, sync mode and current global round. Flags are nationalities for privacy (who owns the phone), not rooms. **⋮ → Dev tools** holds extras (HUD, experiments, resets). Routine connection settings live on **Sync**.
 
 ### Dry-run without real sensors
 
 1. ⋮ → Dev tools → **Experiments and synthetic data** → **Seed synthetic pose trials**
 2. Model tab → **Train local baseline**
-3. Federate tab → run a round (see below)
+3. Sync tab → run a round (see below)
+
+## First-time setup (each phone)
+
+1. **Home** → claim an empty slot (🇨🇦/🇵🇪 × Class/Personal). Claiming **locks that phone forever**.
+2. **Sync** → pick **Git** or **LAN**, fill token or server URL, **Test connection**.
+3. **Collect** → record primary poses + light cover of the other three.
+4. **Model** → train local baseline.
+5. **Sync** → run federated rounds (below).
+6. **Results** → pull peer baseline and compare.
+
+Typed-word collection is optional (Collect → Typed words). Model / Sync rounds / Results stay pose-only until that pipeline exists.
 
 ## Two-phone federated round
 
-### Layout: 🇨🇦 Canada and 🇵🇪 Peru
+### Identity: nationality × Class / Personal
 
-| Site | Class phone | Personal phone | Collect tag |
-|------|-------------|----------------|-------------|
-| 🇨🇦 Canada | `canada-class` | `canada-personal` | `canada` |
-| 🇵🇪 Peru | `peru-class` | `peru-personal` (optional) | `peru` |
+| Nationality (who) | Class phone | Personal phone |
+|-------------------|-------------|----------------|
+| 🇨🇦 Canada | `canada-class` | `canada-personal` |
+| 🇵🇪 Peru | `peru-class` | `peru-personal` (optional) |
 
-Class = course Client A (screen up/down, portrait up). Personal = course Client B (portrait down, landscapes).
+Class = course Client A (screen up/down, portrait up). Personal = course Client B (portrait down, landscapes). Use Collect’s **Room / session** tag for the actual room (e.g. `dorm`, `lab`).
 
-Pick the phone in ⋮ → **Which phone is this?** That sets the role, the file id, and the Collect location tag. If Peru only has one phone, pick Class or Personal and leave the other unused.
-
-Then on each phone:
+On each phone after claiming:
 
 1. **Train** — pulls the newest global model (if any) and trains it further on local data (warm start).
 2. **Send update** — uploads weights + counts (and your baseline, for comparison).
@@ -61,7 +71,7 @@ Round *N* updates are only accepted while the federation waits for round *N*; st
 python server/fedavg_server.py
 ```
 
-Set the laptop's LAN IP in Dev tools (`http://192.168.x.x:8080`), choose **LAN** on the Federate tab, and use **Test connection**. Details: [`server/README.md`](server/README.md).
+Set the laptop's LAN IP on the **Sync** tab (`http://192.168.x.x:8080`), choose **LAN**, and **Test connection**. Details: [`server/README.md`](server/README.md).
 
 ### Option 2 — Git (phones in different rooms)
 
@@ -69,8 +79,8 @@ Phones talk to the GitHub Contents API; nobody has to be online at the same time
 
 1. Make the repo **private** (weights are model data, keep them private unless you are fine sharing them).
 2. GitHub → Settings → Developer settings → **Fine-grained tokens** → new token, *only this repository*, permission **Contents: Read and write**.
-3. On each phone: Dev tools → set repo (`owner/name`), branch and token → **Test connection**.
-4. Choose **Git** on the Federate tab and run rounds as above.
+3. On each phone: **Sync** → set repo (`owner/name`) and token → **Test connection**.
+4. Choose **Git** and run rounds as above.
 
 The token is stored in app-private storage only (backups are disabled); never commit it.
 
@@ -83,6 +93,7 @@ federation/latest.json                        {"round": N}
 federation/rounds/NNNN/updates/<client>.json  weights, sampleCount, per-pose trial counts, sensorConfig, ...
 federation/rounds/NNNN/global.json            aggregated model
 results/baselines/<client>-local.json         independent local-only model
+results/bindings/<deviceHash>.json            permanent phone → slot claims
 results/<client>/<timestamp>-<kind>.json      held-out metrics, confusion matrix, session tags
 ```
 
@@ -92,8 +103,8 @@ Raw trials are never uploaded.
 
 ```
 edu.iot.phoneangle/
-  MainShellActivity, DevToolsActivity, ExperimentsActivity, TypedWordActivity, MainActivity (HUD)
-  ui/            Collect / Model / Federate / Compare fragments, ConfusionMatrixView
+  MainShellActivity, DevToolsActivity, ExperimentsActivity, MainActivity (HUD)
+  ui/            Home / Collect / Model / Federate(Sync) / Compare(Results), ChecklistState
   data/          PhonePose, Trial, SyntheticPoseData
   sensors/       SensorCollector
   collection/    TrialRecorder

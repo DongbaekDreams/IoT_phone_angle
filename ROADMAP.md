@@ -31,7 +31,7 @@ Check items off as you finish them. Order matters — finish each gate before th
 - [ ] Class phones: plenty of primary poses (screen up / down, portrait up) + light cover of all six
 - [ ] Personal phones: plenty of primary poses (portrait down, landscape left / right) + light cover of all six
 - [x] Same model architecture and preprocessing on both devices (compatibility checked on every update)
-- [ ] 🇨🇦 Canada Class+Personal and 🇵🇪 Peru (1 or 2 phones); Collect tags `canada` / `peru`
+- [ ] 🇨🇦 Canada Class+Personal and 🇵🇪 Peru (1 or 2 phones); room tags separate from nationality
 
 **Gate:** both phones independently train and evaluate compatible local models.
 
@@ -80,10 +80,10 @@ Check items off as you finish them. Order matters — finish each gate before th
 ## Data campaign (needs the phones)
 
 - [ ] All phones installed (`./gradlew :app:installDebug`)
-- [ ] Each phone set via ⋮ → Which phone is this? (🇨🇦/🇵🇪 × Class/Personal)
+- [ ] Each phone claims one slot (🇨🇦/🇵🇪 × Class/Personal); locked on device, synced via Git/LAN
 - [ ] Peru: use whichever phone(s) are available; unused Peru slot stays empty
-- [ ] Each phone: ≥ 3 trials of each primary pose, ≥ 1 of the others, under its site tag (`canada` / `peru`)
-- [ ] Both site tags present so leave-one-session-out can run
+- [ ] Each phone: ≥ 3 trials of each primary pose, ≥ 1 of the others; room tag = physical place
+- [ ] ≥2 different room tags so leave-one-session-out can run
 - [ ] Train local baseline on each phone; **Send update** (also publishes the baseline)
 - [ ] 2+ federated rounds; Compare tab → *Get peer baseline and global* → *Share my results*
 - [ ] Run all ablations and the generalization experiment; copy numbers into the report

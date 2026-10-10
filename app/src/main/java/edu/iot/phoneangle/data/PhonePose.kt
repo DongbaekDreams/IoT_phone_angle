@@ -61,6 +61,10 @@ enum class PhonePose(
         return (gravity.x * e.x + gravity.y * e.y + gravity.z * e.z) / len
     }
 
+    /** True when you must flip the phone after tapping (can't press the screen in that pose). */
+    val needsGetReady: Boolean
+        get() = this == SCREEN_DOWN || this == PORTRAIT_DOWN
+
     companion object {
         const val MATCH_THRESHOLD = 0.9f
 
@@ -74,8 +78,8 @@ enum class PhonePose(
  * Each primarily trains on three poses; both still collect a little of all six for eval.
  */
 enum class ClientRole(val label: String) {
-    CLIENT_A("Class"),
-    CLIENT_B("Personal");
+    CLIENT_A("Class phone"),
+    CLIENT_B("Personal phone");
 
     fun primaryPoses(): Set<PhonePose> = when (this) {
         CLIENT_A -> setOf(
