@@ -47,11 +47,12 @@ Check items off as you finish them. Order matters — finish each gate before th
 
 ## 4 — Typed-word extension (extra credit) — local first
 
-- [x] Labeled typing trial recorder UI (`google` / `yahoo` / `other`)
-- [x] Chunked typed preprocessor + Softmax (`GOOGLE` / `YAHOO` / `OTHER`)
-- [x] Local train / holdout metrics (incl. FP) on Model tab
-- [x] Sliding-window Listen with debounce
-- [ ] Enough real trials on both phones; tune threshold if needed
+- [x] ~~MiniRocket whole-word classifier~~ replaced (weak scores, ~1 s lag) — see `docs/typed_word_pipeline.md` §2
+- [x] 200 Hz IMU on a background thread; in-app training keyboard records tap position + time labels
+- [x] Tap detector → per-tap position model → keyword–filler word spotter (search-query scope)
+- [x] 60/20/20 train/val/test by query; tap, key and query metrics on the Extra credit screen
+- [x] Live flagging on typing pause (IMU only)
+- [ ] Enough real queries on both phones; per-grip and cross-device results
 
 **Gate:** both phones can train/evaluate typed-word models with no server.
 
@@ -71,7 +72,7 @@ Check items off as you finish them. Order matters — finish each gate before th
 
 ## 6 — Federate typed-word + wrap-up
 
-- [ ] Federate typed-word models (same workflow as pose)
+- [ ] Federate typed-word tap-position weights (scaler stays local)
 - [ ] Cross-device / robustness notes for demo
 - [ ] Phase 1 design report (~Oct 20)
 - [ ] Phase 2 report + `Sources` + in-class demo (~Dec 1–3)

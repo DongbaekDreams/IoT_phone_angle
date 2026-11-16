@@ -13,7 +13,16 @@
         android:layout_height="56dp"
         android:background="@color/bg"
         app:navigationIcon="@drawable/ic_back"
-        app:title="" />
+        app:title="">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/gripButton"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:textColor="@color/accent" />
+    </com.google.android.material.appbar.MaterialToolbar>
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -29,13 +38,22 @@
             android:orientation="vertical">
 
             <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/typed_play_search_for"
+                android:textColor="@color/muted"
+                android:textSize="14sp" />
+
+            <TextView
                 android:id="@+id/promptWord"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
                 android:textColor="@color/ink"
-                android:textSize="40sp" />
+                android:textSize="36sp" />
 
             <TextView
                 android:id="@+id/feedback"
@@ -47,32 +65,39 @@
                 android:textColor="@color/accent"
                 android:textSize="15sp" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/typoButton"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
+            <TextView
+                android:id="@+id/sessionCount"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/typed_typo"
-                android:textColor="@color/muted" />
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:textColor="@color/faint"
+                android:textSize="12sp" />
         </LinearLayout>
     </FrameLayout>
 
-    <com.google.android.material.textfield.TextInputEditText
-        android:id="@+id/typedInput"
+    <!-- Fake search bar: shows what the training keyboard typed. -->
+    <TextView
+        android:id="@+id/searchBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
-        android:layout_marginBottom="12dp"
+        android:layout_marginBottom="10dp"
         android:background="@drawable/bg_typed_input"
         android:hint="@string/typed_input_hint"
-        android:imeOptions="actionDone"
-        android:importantForAutofill="no"
-        android:inputType="textVisiblePassword|textNoSuggestions"
         android:maxLines="1"
         android:paddingHorizontal="18dp"
         android:paddingVertical="16dp"
         android:textColor="@color/ink"
         android:textColorHint="@color/faint"
         android:textSize="20sp" />
+
+    <edu.iot.phoneangle.ui.TapKeyboardView
+        android:id="@+id/keyboard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/surface"
+        android:paddingHorizontal="2dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="10dp" />
 </LinearLayout>

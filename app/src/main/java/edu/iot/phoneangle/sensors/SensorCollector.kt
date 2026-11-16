@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Handler
 import edu.iot.phoneangle.data.FloatArray3
 import edu.iot.phoneangle.data.FloatArray4
 import edu.iot.phoneangle.data.SensorSample
@@ -42,13 +43,18 @@ class SensorCollector(
             rotationVector = rotationVector != null,
         )
 
-    fun start(samplingPeriodUs: Int = SensorManager.SENSOR_DELAY_GAME) {
+    /**
+     * @param handler deliver callbacks on this thread (null = main thread). Typed-word
+     * screens pass a background [android.os.HandlerThread] so 200 Hz sampling never
+     * competes with the keyboard for the UI thread.
+     */
+    fun start(samplingPeriodUs: Int = SensorManager.SENSOR_DELAY_GAME, handler: Handler? = null) {
         if (running) return
         running = true
-        accelerometer?.let { sensorManager.registerListener(this, it, samplingPeriodUs) }
-        gyroscope?.let { sensorManager.registerListener(this, it, samplingPeriodUs) }
-        gravitySensor?.let { sensorManager.registerListener(this, it, samplingPeriodUs) }
-        rotationVector?.let { sensorManager.registerListener(this, it, samplingPeriodUs) }
+        accelerometer?.let { sensorManager.registerListener(this, it, samplingPeriodUs, handler) }
+        gyroscope?.let { sensorManager.registerListener(this, it, samplingPeriodUs, handler) }
+        gravitySensor?.let { sensorManager.registerListener(this, it, samplingPeriodUs, handler) }
+        rotationVector?.let { sensorManager.registerListener(this, it, samplingPeriodUs, handler) }
     }
 
     fun stop() {
@@ -83,6 +89,11 @@ class SensorCollector(
                 rotationVector = latestRotation,
             )
         )
+    }
+
+    companion object {
+        /** 200 Hz — keystroke taps last 20–60 ms, so 50 Hz (SENSOR_DELAY_GAME) aliases them. */
+        const val TAP_SAMPLING_US = 5_000
     }
 
     data class AvailableSensors(

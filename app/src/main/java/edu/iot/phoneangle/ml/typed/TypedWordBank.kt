@@ -3,40 +3,29 @@ package edu.iot.phoneangle.ml.typed
 import kotlin.random.Random
 
 /**
- * Prompt bank for gamified typing collection.
- * Draw: 25% google, 25% yahoo, 50% distractors (half of those are hard negatives).
+ * Search-bar prompts for Play collection.
+ * Draw: 20% google, 20% yahoo (a third of those as `.com`), 15% lookalikes, 45% ordinary searches.
+ * Every query trains the tap-position model (all letters count), so variety beats repetition.
  */
 object TypedWordBank {
 
     const val GOOGLE = "google"
     const val YAHOO = "yahoo"
 
-    /**
-     * Hard negatives: similar length / site-like / overlapping prefixes with the targets.
-     * These teach the model “other typing that is not google/yahoo”.
-     */
-    val HARD_NEGATIVES: List<String> = listOf(
-        "gmail", "goggle", "goose", "gorgeous", "gospel", "gossip", "garage", "garden",
-        "youtube", "yaho", "yummy", "yellow", "year", "young", "yoga",
-        "bing", "baidu", "duck", "reddit", "twitch", "tiktok", "instagram", "facebook",
-        "amazon", "netflix", "spotify", "discord", "github", "gitlab", "stackoverflow",
-        "chrome", "safari", "firefox", "edge", "brave",
-        "search", "browse", "login", "signup", "password", "username",
-        "oggle", "ahoo", "googl", "yahooo",
-    )
+    /** Words the spotter must not confuse with a target ([WordSpotter.COMPETITORS] plus more). */
+    val HARD_NEGATIVES: List<String> = WordSpotter.COMPETITORS + listOf(
+        "goal", "gobble", "gold", "yahtzee", "yoyo", "yahoot", "yellow", "yoohoo",
+    ).filter { it !in WordSpotter.COMPETITORS }
 
-    /** Soft distractors (everyday words). */
-    val OTHER_WORDS: List<String> = listOf(
-        "apple", "orange", "banana", "grape", "lemon", "mango", "peach", "berry", "melon", "cherry",
-        "river", "ocean", "lake", "storm", "cloud", "rain", "wind", "snow", "sunny", "foggy",
-        "house", "table", "chair", "door", "window", "floor", "light", "clock", "phone", "paper",
-        "green", "blue", "red", "black", "white", "yellow", "purple", "silver", "gold", "brown",
-        "happy", "quiet", "loud", "quick", "slow", "bright", "dark", "soft", "hard", "smooth",
-        "music", "dance", "sing", "paint", "draw", "write", "read", "learn", "teach", "study",
-        "bread", "butter", "cheese", "pizza", "pasta", "salad", "soup", "coffee", "water", "juice",
-        "tiger", "lion", "eagle", "horse", "dog", "cat", "bird", "fish", "shark", "whale",
-        "north", "south", "east", "west", "city", "town", "road", "bridge", "park", "field",
-        "summer", "winter", "spring", "autumn", "monday", "friday", "night", "morning", "today", "tomorrow",
+    /** Typical short search queries — the realistic `other` class. */
+    val SEARCHES: List<String> = listOf(
+        "weather", "news", "maps", "amazon", "netflix", "reddit", "twitch", "spotify", "discord",
+        "facebook", "instagram", "tiktok", "wikipedia", "translate", "calculator", "recipes",
+        "pizza near me", "movie times", "nba scores", "bus schedule", "flights", "hotels",
+        "homework help", "math games", "minecraft", "roblox", "fortnite", "pokemon", "lego",
+        "cats", "dogs", "dinosaurs", "space facts", "volcano", "ocean animals", "music",
+        "piano lessons", "drawing ideas", "science fair", "library", "school lunch", "bing",
+        "duckduckgo", "github", "outlook", "zoom", "canvas", "khan academy", "quizlet", "kahoot",
     )
 
     data class Prompt(
@@ -48,19 +37,14 @@ object TypedWordBank {
 
     fun next(rng: Random = Random.Default): Prompt {
         val roll = rng.nextFloat()
-        return when {
-            roll < 0.25f -> Prompt(GOOGLE, GOOGLE)
-            roll < 0.50f -> Prompt(YAHOO, YAHOO)
-            else -> {
-                // Half of distractors are hard negatives (site-like / similar length).
-                val word = if (rng.nextFloat() < 0.5f) {
-                    HARD_NEGATIVES[rng.nextInt(HARD_NEGATIVES.size)]
-                } else {
-                    OTHER_WORDS[rng.nextInt(OTHER_WORDS.size)]
-                }
-                Prompt(word, word)
-            }
+        fun target(w: String) = if (rng.nextFloat() < 1f / 3f) "$w.com" else w
+        val word = when {
+            roll < 0.20f -> target(GOOGLE)
+            roll < 0.40f -> target(YAHOO)
+            roll < 0.55f -> HARD_NEGATIVES[rng.nextInt(HARD_NEGATIVES.size)]
+            else -> SEARCHES[rng.nextInt(SEARCHES.size)]
         }
+        return Prompt(word, word)
     }
 
     fun matches(typed: CharSequence, target: String): Boolean =

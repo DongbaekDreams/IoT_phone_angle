@@ -2,6 +2,8 @@ package edu.iot.phoneangle
 
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Handler
+import android.os.HandlerThread
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -13,7 +15,8 @@ import edu.iot.phoneangle.sensors.SensorCollector
 import edu.iot.phoneangle.store.LocalDatasetStore
 
 /**
- * Section 4 shell — labeled typing trials (extra credit). Train later.
+ * Idle recording for the extra credit: handle the phone without typing. Recorded at the same
+ * 200 Hz as Play so held-out idle time measures false taps per minute.
  */
 class TypedWordActivity : AppCompatActivity() {
 
@@ -23,6 +26,7 @@ class TypedWordActivity : AppCompatActivity() {
     private lateinit var collector: SensorCollector
     private val recorder = TrialRecorder()
     private var countdown: CountDownTimer? = null
+    private lateinit var sensorThread: HandlerThread
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,6 +39,7 @@ class TypedWordActivity : AppCompatActivity() {
             if (recorder.isRecording) recorder.offer(sample)
         }
 
+        sensorThread = HandlerThread("typed-idle-sensors").also { it.start() }
         binding.toolbar.setNavigationOnClickListener { finish() }
 
         binding.targetSpinner.adapter = ArrayAdapter(
@@ -58,7 +63,7 @@ class TypedWordActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        collector.start()
+        collector.start(SensorCollector.TAP_SAMPLING_US, Handler(sensorThread.looper))
     }
 
     override fun onPause() {
@@ -68,12 +73,17 @@ class TypedWordActivity : AppCompatActivity() {
         super.onPause()
     }
 
+    override fun onDestroy() {
+        sensorThread.quitSafely()
+        super.onDestroy()
+    }
+
     private fun startTrial() {
         if (recorder.isRecording) return
         val label = TARGETS[binding.targetSpinner.selectedItemPosition]
         recorder.start(
             label = label,
-            task = TrialTask.TYPED_WORD,
+            task = TrialTask.TYPED_TAP,
             clientRole = settings.clientRole,
             notes = "typed_word_shell",
         )
@@ -128,7 +138,7 @@ class TypedWordActivity : AppCompatActivity() {
     }
 
     private fun refreshCounts() {
-        val byLabel = store.countByLabel(TrialTask.TYPED_WORD)
+        val byLabel = store.countByLabel(TrialTask.TYPED_TAP).filterKeys { it in TARGETS }
         binding.countsText.text = if (byLabel.isEmpty()) {
             getString(R.string.typed_counts_empty)
         } else {
@@ -138,6 +148,6 @@ class TypedWordActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_TARGET = "target"
-        val TARGETS = listOf("google", "yahoo", "other", "idle")
+        val TARGETS = listOf("idle")
     }
 }

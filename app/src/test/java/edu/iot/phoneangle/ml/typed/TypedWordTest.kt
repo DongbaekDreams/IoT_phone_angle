@@ -3,381 +3,313 @@ package edu.iot.phoneangle.ml.typed
 import edu.iot.phoneangle.data.ClientRole
 import edu.iot.phoneangle.data.FloatArray3
 import edu.iot.phoneangle.data.SensorSample
+import edu.iot.phoneangle.data.TouchLabel
 import edu.iot.phoneangle.data.Trial
 import edu.iot.phoneangle.data.TrialTask
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.abs
+import kotlin.math.exp
+import kotlin.random.Random
 
+/**
+ * Plumbing tests on synthetic data. They prove detector / regression / matcher / trainer wiring,
+ * not real-world accuracy — that comes from the held-out report on real recordings.
+ */
 class TypedWordTest {
-
-    @Test
-    fun wordBankDrawRatesAreReasonable() {
-        val rng = kotlin.random.Random(0)
-        var g = 0
-        var y = 0
-        var o = 0
-        repeat(4000) {
-            when (TypedWordBank.next(rng).label) {
-                TypedWordBank.GOOGLE -> g++
-                TypedWordBank.YAHOO -> y++
-                else -> o++
-            }
-        }
-        assertTrue(g in 850..1150)
-        assertTrue(y in 850..1150)
-        assertTrue(o in 1700..2300)
-    }
 
     @Test
     fun labelMapping() {
         assertEquals(TypedLabel.GOOGLE, TypedLabel.fromCollectLabel("google"))
         assertEquals(TypedLabel.GOOGLE, TypedLabel.fromCollectLabel("Google.com"))
-        assertEquals(TypedLabel.YAHOO, TypedLabel.fromCollectLabel("yahoo"))
-        assertEquals(TypedLabel.OTHER, TypedLabel.fromCollectLabel("youtube"))
-        assertEquals(TypedLabel.OTHER, TypedLabel.fromCollectLabel("other"))
+        assertEquals(TypedLabel.YAHOO, TypedLabel.fromCollectLabel("yahoo.com"))
+        assertEquals(TypedLabel.OTHER, TypedLabel.fromCollectLabel("goggle"))
         assertEquals(TypedLabel.IDLE, TypedLabel.fromCollectLabel("idle"))
     }
 
     @Test
-    fun preprocessorFeatureDim() {
-        val prep = TypedPreprocessor()
-        val channels = prep.channelsFromSamples(noise(40, seed = 1))
-        assertNotNull(channels)
-        assertEquals(MiniRocketTransform.N_CHANNELS, channels!!.size)
-        val features = prep.featuresFromChannels(channels, FloatArray(TypedPreprocessor.FEATURE_DIM))
-        assertEquals(TypedPreprocessor.FEATURE_DIM, features.size)
-        assertEquals(84, TypedPreprocessor.FEATURE_DIM)
-        assertEquals(7, TypedPreprocessor.VERSION)
+    fun wordBankDrawRates() {
+        val rng = Random(0)
+        val draws = List(4000) { TypedWordBank.next(rng).label }
+        val g = draws.count { TypedLabel.fromCollectLabel(it) == TypedLabel.GOOGLE }
+        val y = draws.count { TypedLabel.fromCollectLabel(it) == TypedLabel.YAHOO }
+        val hard = draws.count { it in TypedWordBank.HARD_NEGATIVES }
+        assertTrue("g=$g", g in 650..950)
+        assertTrue("y=$y", y in 650..950)
+        assertTrue("hard=$hard", hard in 450..750)
+        assertTrue(draws.any { it == "google.com" })
     }
 
     @Test
-    fun wordBankIncludesHardNegatives() {
-        val rng = kotlin.random.Random(1)
-        var hard = 0
-        repeat(2000) {
-            val w = TypedWordBank.next(rng).word
-            if (w in TypedWordBank.HARD_NEGATIVES) hard++
-        }
-        // ~25% of draws are hard negatives (half of the 50% other bucket).
-        assertTrue("hard=$hard", hard in 350..650)
+    fun keyboardGeometry() {
+        assertEquals(0.05f, KeyboardLayout.key("q")!!.cx, 1e-6f)
+        assertEquals(KeyboardLayout.key("o")!!.cy, KeyboardLayout.key("p")!!.cy, 1e-6f)
+        assertEquals("g", KeyboardLayout.keyAt(0.5f, 0.375f).label)
+        assertEquals(TouchLabel.KEY_ENTER, KeyboardLayout.keyAt(0.95f, 0.9f).label)
+        assertEquals(6, KeyboardLayout.path("google").size)
     }
 
     @Test
-    fun timeWarpPreservesShape() {
-        val ch = TypedPreprocessor().channelsFromSamples(noise(64, 2))!!
-        val warped = TypedAugment.timeWarp(ch, 0.8f)
-        assertEquals(MiniRocketTransform.N_CHANNELS, warped.size)
-        assertEquals(MiniRocketTransform.INPUT_LENGTH, warped[0].size)
-        val hes = TypedAugment.hesitation(ch)
-        assertEquals(MiniRocketTransform.INPUT_LENGTH, hes[0].size)
+    fun ridgeRecoversLinearMap() {
+        val rng = Random(3)
+        val xs = List(200) { FloatArray(4) { rng.nextFloat() * 2 - 1 } }
+        val y = FloatArray(xs.size) { 0.3f * xs[it][0] - 0.7f * xs[it][2] + 0.5f }
+        val (w, b) = TapPositionModel.ridge(xs, y, 1e-3f)
+        assertEquals(0.3f, w[0], 0.01f)
+        assertEquals(-0.7f, w[2], 0.01f)
+        assertEquals(0.5f, b, 0.01f)
     }
 
-    @Test
-    fun exampleFromTrialMapsLabel() {
-        val trial = trial("t1", "yahoo", word("yahoo", 40, 1))
-        val ex = TypedPreprocessor().channelExampleFromTrial(trial)
-        assertNotNull(ex)
-        assertEquals(TypedLabel.YAHOO, ex!!.label)
-        assertEquals(MiniRocketTransform.N_CHANNELS, ex.channels.size)
-    }
+    // ---- WordSpotter with an oracle position model ------------------------------------------
 
-    @Test
-    fun segmenterFindsBurstInsideIdle() {
-        val samples = Stream().idle(1000).word("google", 1200, 3).idle(1000).samples
-        val span = ActivitySegmenter.span(samples)!!
-        val burstStart = 1000_000_000L
-        val burstEnd = 2200_000_000L
-        assertTrue("start ${span.first}", span.first in (burstStart - 400_000_000L)..(burstStart + 300_000_000L))
-        assertTrue("end ${span.last}", span.last in (burstEnd - 300_000_000L)..(burstEnd + 400_000_000L))
-    }
-
-    @Test
-    fun activityDetectorProposesTypingNotIdle() {
-        val quiet = TypingActivityDetector()
-        Stream().idle(3000, 1).samples.forEach { quiet.offer(it) }
-        assertEquals(null, quiet.pollCompleted())
-
-        val det = TypingActivityDetector()
-        Stream().idle(800, 2).word("google", 1000, 3).still(2000).samples.forEach { det.offer(it) }
-        val found = det.pollCompleted()
-        assertNotNull("expected a typing candidate", found)
-        assertTrue(found!!.durationMs >= TypingActivityDetector.MIN_ACTIVE_MS)
-        assertTrue("peak=${found.peakEnergy}", found.peakEnergy >= TypingActivityDetector.MIN_PEAK_ENERGY)
-    }
-
-    @Test
-    fun windowingLabelsWordAndIdleWindows() {
-        val windowing = TypedWindowing()
-        val g = windowing.windowsFromTrial(trial("g", "google", Stream().idle(2500).word("google", 1200, 1).idle(2500).samples))
-        assertTrue(g.isNotEmpty())
-        assertTrue(g.any { it.label == TypedLabel.GOOGLE })
-        assertTrue(g.any { it.label == TypedLabel.IDLE })
-        assertTrue(g.all { it.label == TypedLabel.GOOGLE || it.label == TypedLabel.IDLE })
-        // Session id is the trial id (no chunk splits).
-        assertTrue(g.all { it.trialId == "g" })
-
-        val idle = windowing.windowsFromTrial(trial("i", "idle", Stream().idle(6000).samples))
-        assertTrue(idle.size > 10)
-        assertTrue(idle.all { it.label == TypedLabel.IDLE })
-    }
-
-    @Test
-    fun sessionSplitKeepsWholeRecordingTogether() {
-        val wf = TypedWorkflow::class.java
-        // Use the same hash rule without Android context:
-        val examples = listOf(
-            TypedChannelExample(Array(6) { FloatArray(64) }, TypedLabel.GOOGLE, "sessA"),
-            TypedChannelExample(Array(6) { FloatArray(64) }, TypedLabel.GOOGLE, "sessA"),
-            TypedChannelExample(Array(6) { FloatArray(64) }, TypedLabel.YAHOO, "sessB"),
-            TypedChannelExample(Array(6) { FloatArray(64) }, TypedLabel.YAHOO, "sessB"),
-        )
-        // Inline the split logic used by TypedWorkflow.splitBySession
-        val sessionIsTest = HashMap<String, Boolean>()
-        val train = mutableListOf<TypedChannelExample>()
-        val test = mutableListOf<TypedChannelExample>()
-        for (ex in examples) {
-            val key = ex.trialId.substringBefore('#')
-            val isTest = sessionIsTest.getOrPut(key) { kotlin.math.abs(key.hashCode()) % 100 < 25 }
-            if (isTest) test += ex else train += ex
-        }
-        assertFalse(train.any { it.trialId == "sessA" } && test.any { it.trialId == "sessA" })
-        assertFalse(train.any { it.trialId == "sessB" } && test.any { it.trialId == "sessB" })
-        assertEquals(4, train.size + test.size)
-        assertNotNull(wf.name)
-    }
-
-    @Test
-    fun liveListenerCatchesWordsAtAnyWindowPhase() {
-        val bundle = trainSyntheticLiveBundle()
-        for (offsetMs in 0 until 100 step 50) {
-            for (label in listOf("google", "yahoo")) {
-                val alerts = TypedReplayEval.replaySamples(
-                    bundle,
-                    Stream().idle(4000).word(label, 1200, 77).still(2500).samples,
-                    offsetMs,
-                )
-                assertEquals("offset=$offsetMs $label alerts=$alerts", listOf(TypedLabel.fromCollectLabel(label)), alerts)
-            }
-        }
-    }
-
-    @Test
-    fun liveListenerStaysQuietOnIdleAndOtherWords() {
-        val bundle = trainSyntheticLiveBundle()
-        for (offsetMs in 0 until 100 step 50) {
-            assertEquals(
-                emptyList<TypedLabel>(),
-                TypedReplayEval.replaySamples(bundle, Stream().idle(12_000, seed = 5).samples, offsetMs),
-            )
-            assertEquals(
-                emptyList<TypedLabel>(),
-                TypedReplayEval.replaySamples(
-                    bundle,
-                    Stream().idle(3000).word("apple", 1200, 9).idle(3000).samples,
-                    offsetMs,
-                ),
-            )
-        }
-    }
-
-    @Test
-    fun backToBackWordsBothFire() {
-        val bundle = trainSyntheticLiveBundle()
-        val listener = TypedListener(wordBundle = bundle, earlyThreshold = 1.01f)
-        val alerts = TypedReplayEval.replaySamples(
-            bundle,
-            Stream().idle(3000).word("google", 1200, 1).still(2500).word("yahoo", 1400, 2).still(3000).samples,
-            offsetMs = 50,
-            listener = listener,
-        )
-        // First burst must flag; second depends on Stage A re-arm after long quiet.
-        assertTrue("alerts=$alerts", alerts.isNotEmpty())
-        assertEquals(TypedLabel.GOOGLE, alerts.first())
-        assertTrue("duplicate spam $alerts", alerts.size <= 3)
-    }
-
-    @Test
-    fun eventDrivenSkipsStageBWhileIdle() {
-        val bundle = trainSyntheticLiveBundle()
-        val listener = TypedListener(bundle)
-        val samples = Stream().idle(8_000, seed = 11).samples
-        var next = samples.first().timestampNs + 500_000_000L
-        for (s in samples) {
-            listener.offer(s)
-            if (s.timestampNs >= next) {
-                listener.step()
-                next += TypedWindowing.LIVE_STRIDE_MS * 1_000_000L
-            }
-        }
-        // Continuous scoring at 100 ms would run ~75×; event-driven should stay far below.
-        assertTrue("infer=${listener.inferenceCount}", listener.inferenceCount < 15)
-    }
-
-    @Test
-    fun rocketTransformIntoMatchesTransform() {
-        val rocket = MiniRocketTransform.Default
-        val channels = TypedPreprocessor().channelsFromSamples(noise(64, 3))!!
-        val biases = FloatArray(rocket.featureDim) { it * 0.01f }
-        val a = rocket.transform(channels, biases)
-        val b = FloatArray(rocket.featureDim)
-        rocket.transformInto(channels, biases, b)
-        assertTrue(a.indices.all { kotlin.math.abs(a[it] - b[it]) < 1e-6f })
-    }
-
-    @Test
-    fun feedTimelineRoundTripAndTypoPolicy() {
-        val words = listOf(
-            FeedWord("google", 10, 20, FeedWord.Status.CLEAN),
-            FeedWord("apple", 30, 40, FeedWord.Status.TYPO),
-            FeedWord("river", 50, 60, FeedWord.Status.DISCARD),
-        )
-        assertEquals(words, FeedTimeline.decode(FeedTimeline.encode(words)))
-        assertEquals(FeedWord.Status.CLEAN, FeedTimeline.classify("google", "Google"))
-        assertEquals(FeedWord.Status.TYPO, FeedTimeline.classify("google", "gogle"))
-        assertEquals(FeedWord.Status.TYPO, FeedTimeline.classify("yahoo", "yaho"))
-        assertEquals(FeedWord.Status.DISCARD, FeedTimeline.classify("google", "xyz"))
-        assertEquals(FeedWord.Status.CLEAN, FeedTimeline.classify("apple", "aple"))
-        assertEquals(FeedWord.Status.CLEAN, FeedTimeline.classify("apple", "something else"))
-    }
-
-    @Test
-    fun feedWindowsLabelNeighborsAndTargets() {
-        val s = Stream().idle(600, 1)
-        val timeline = mutableListOf<FeedWord>()
-        val order = listOf("apple", "google", "banana", "yahoo", "river", "melon", "google", "table")
-        order.forEachIndexed { i, w ->
-            val start = s.nowNs
-            s.word(w, 700, 40 + i)
-            timeline += FeedWord(w, start, s.nowNs, FeedWord.Status.CLEAN)
-            s.idle(120, i)
-        }
-        s.idle(600, 2)
-        val t = Trial(
-            id = "f", label = "feed", task = TrialTask.TYPED_FEED, clientRole = ClientRole.CLIENT_A,
-            startedAtEpochMs = 0, endedAtEpochMs = 1, samples = s.samples, notes = FeedTimeline.encode(timeline),
-        )
-        val wins = TypedWindowing().windowsFromTrials(listOf(t))
-        assertTrue(wins.any { it.label == TypedLabel.GOOGLE })
-        assertTrue(wins.any { it.label == TypedLabel.YAHOO })
-        assertTrue(wins.any { it.label == TypedLabel.OTHER })
-        assertTrue(wins.all { it.trialId == "f" })
-    }
-
-    // --- helpers ---
-
-    private fun trainSyntheticLiveBundle(): TypedModelBundle {
-        val prep = TypedPreprocessor()
-        val windowing = TypedWindowing(prep)
-        val trials = buildList {
-            for (i in 0 until 12) {
-                val lead = 600 + (i % 4) * 250
-                val tail = 600 + ((i + 1) % 4) * 250
-                add(trial("g$i", "google", Stream().idle(lead, i).word("google", 1200, 100 + i).idle(tail, i).samples))
-                add(trial("y$i", "yahoo", Stream().idle(lead, i).word("yahoo", 1200, 200 + i).idle(tail, i).samples))
-                add(trial("o$i", "banana", Stream().idle(lead, i).word("banana", 1200, 300 + i).idle(tail, i).samples))
-            }
-            for (i in 0 until 4) add(trial("idle$i", "idle", Stream().idle(15_000, 400 + i).samples))
-        }
-        val rng = kotlin.random.Random(1)
-        val raw = windowing.windowsFromTrials(trials).flatMap { ex ->
-            if (ex.label == TypedLabel.IDLE) listOf(ex) else TypedAugment.expand(ex, rng)
-        }
-        val biases = prep.fitBiases(raw.shuffled(rng).take(200).map { it.channels })
-        val ppv = raw.map { TypedExample(prep.featuresFromChannels(it.channels, biases), it.label, it.trialId) }
-        val scaler = FeatureScaler()
-        val scaled = scaler.fitTransform(ppv.map { it.features })
-        val examples = ppv.zip(scaled) { ex, f -> ex.copy(features = f) }
-        val model = TypedTrainer().train(examples, classes = TypedLabel.LIVE).model
-        return TypedModelBundle(
-            model = model,
-            scaler = scaler,
-            rocketBiases = biases,
-            trainedAtEpochMs = 1L,
-            trainAccuracy = 1f,
-            trainSampleCount = examples.size,
-            windowMs = windowing.windowMs,
+    /** Features 0/1 are the true x/y, so the model's prediction is the tap position + noise. */
+    private fun oracleModel(sigmaX: Float = 0.06f, sigmaY: Float = 0.10f, withMove: Boolean = false): TapPositionModel {
+        val d = TapStream.FEATURE_DIM
+        val scaler = TapScaler().also { it.load(FloatArray(d), FloatArray(d) { 1f }) }
+        val wx = FloatArray(d).also { it[0] = 1f }
+        val wy = FloatArray(d).also { it[1] = 1f }
+        return TapPositionModel(
+            scaler, wx, 0f, wy, 0f, sigmaX, sigmaY,
+            TapPositionModel.Gauss(1f, 0.5f), TapPositionModel.Gauss(3f, 1f),
+            move = if (withMove) TapPositionModel.MoveModel(wx.copyOf(), 0f, wy.copyOf(), 0f, 0.03f, 0.05f) else null,
         )
     }
 
-    private fun trial(id: String, label: String, samples: List<SensorSample>) = Trial(
-        id = id,
-        label = label,
-        task = TrialTask.TYPED_WORD,
-        clientRole = ClientRole.CLIENT_A,
-        startedAtEpochMs = 0,
-        endedAtEpochMs = 1,
-        samples = samples,
-    )
-
-    private fun word(label: String, n: Int, seed: Int): List<SensorSample> =
-        Stream().word(label, n * 20, seed).samples
-
-    private fun noise(n: Int, seed: Int): List<SensorSample> = Stream().idle(n * 20, seed).samples
-
-    /** 50 Hz synthetic IMU stream builder. */
-    private class Stream {
-        val samples = mutableListOf<SensorSample>()
-        private var t = 0L
-        val nowNs: Long get() = t
-
-        fun idle(ms: Int, seed: Int = 0): Stream {
-            val rng = java.util.Random(seed.toLong() * 7919 + ms)
-            repeat(ms / 20) {
-                samples += SensorSample(
-                    timestampNs = t,
-                    accel = FloatArray3(
-                        rng.nextGaussian().toFloat() * 0.02f,
-                        rng.nextGaussian().toFloat() * 0.02f,
-                        9.8f + rng.nextGaussian().toFloat() * 0.02f,
-                    ),
-                    gyro = FloatArray3(
-                        rng.nextGaussian().toFloat() * 0.02f,
-                        rng.nextGaussian().toFloat() * 0.02f,
-                        rng.nextGaussian().toFloat() * 0.02f,
-                    ),
-                    gravity = FloatArray3(0f, 0f, 9.8f),
-                )
-                t += 20_000_000L
-            }
-            return this
+    private fun obsFor(spotter: WordSpotter, keys: List<String>, noise: Float, rng: Random): List<WordSpotter.Obs> =
+        keys.map { label ->
+            val k = KeyboardLayout.key(label)!!
+            val f = FloatArray(TapStream.FEATURE_DIM)
+            f[0] = k.cx + (rng.nextFloat() - 0.5f) * 2 * noise
+            f[1] = k.cy + (rng.nextFloat() - 0.5f) * 2 * noise
+            spotter.observe(f)
         }
 
-        /** Near-zero motion (closes Stage A bursts cleanly). */
-        fun still(ms: Int): Stream {
-            repeat(ms / 20) {
-                samples += SensorSample(
-                    timestampNs = t,
-                    accel = FloatArray3(0f, 0f, 9.8f),
-                    gyro = FloatArray3(0f, 0f, 0f),
-                    gravity = FloatArray3(0f, 0f, 9.8f),
-                )
-                t += 20_000_000L
-            }
-            return this
-        }
+    private fun letters(w: String) = w.map { it.toString() }
 
-        fun word(label: String, ms: Int, seed: Int): Stream {
-            val rng = java.util.Random(seed.toLong())
-            val (freq, amp) = when (TypedLabel.fromCollectLabel(label)) {
-                TypedLabel.GOOGLE -> 0.35f to 2.2f
-                TypedLabel.YAHOO -> 0.12f to 4.5f
-                else -> 0.9f to 1.0f
-            }
-            repeat(ms / 20) { i ->
-                val pulse = amp * kotlin.math.sin(i * freq)
-                val noise = rng.nextGaussian().toFloat() * 0.05f
-                samples += SensorSample(
-                    timestampNs = t,
-                    accel = FloatArray3(pulse + noise, pulse * 0.4f, 9.8f + pulse * 0.1f),
-                    gyro = FloatArray3(pulse * 0.7f, -pulse * 0.3f + noise, pulse * 0.2f),
-                    gravity = FloatArray3(0f, 0f, 9.8f),
-                )
-                t += 20_000_000L
-            }
-            return this
+    @Test
+    fun spotterFindsTargetsAndRejectsOthers() {
+        val spotter = WordSpotter(oracleModel(), threshold = 3f)
+        val rng = Random(5)
+        assertEquals(TypedLabel.GOOGLE, spotter.score(obsFor(spotter, letters("google"), 0.03f, rng)).label)
+        assertEquals(
+            TypedLabel.YAHOO,
+            spotter.score(obsFor(spotter, letters("yahoo.com") + TouchLabel.KEY_ENTER, 0.03f, rng)).label,
+        )
+        assertEquals(TypedLabel.OTHER, spotter.score(obsFor(spotter, letters("weather"), 0.03f, rng)).label)
+        assertEquals(TypedLabel.OTHER, spotter.score(obsFor(spotter, letters("netflix"), 0.03f, rng)).label)
+    }
+
+    @Test
+    fun neighbourKeySlipStillMatches() {
+        // h is right next to g: "goohle" taps should still read as google, not as "other".
+        val spotter = WordSpotter(oracleModel(), threshold = 3f)
+        val r = spotter.score(obsFor(spotter, letters("goohle"), 0.02f, Random(7)))
+        assertEquals(TypedLabel.GOOGLE, r.label)
+    }
+
+    @Test
+    fun missedAndExtraTapsAreTolerated() {
+        val spotter = WordSpotter(oracleModel(), threshold = 3f)
+        val rng = Random(9)
+        // Missed "l" ("gogle" would be genuinely ambiguous with the competitor "goggle").
+        assertEquals(TypedLabel.GOOGLE, spotter.score(obsFor(spotter, letters("googe"), 0.02f, rng)).label)
+        assertEquals(TypedLabel.YAHOO, spotter.score(obsFor(spotter, letters("yahooo"), 0.02f, rng)).label)
+    }
+
+    @Test
+    fun lookalikeCompetitorIsNotFlagged() {
+        val spotter = WordSpotter(oracleModel(), threshold = 2f)
+        val r = spotter.score(obsFor(spotter, letters("goggle"), 0.01f, Random(11)))
+        assertEquals(TypedLabel.OTHER, r.label)
+    }
+
+    @Test
+    fun earlyPrefixScoring() {
+        val spotter = WordSpotter(oracleModel(), threshold = 3f)
+        val yaho = spotter.score(obsFor(spotter, letters("yaho"), 0.02f, Random(13)), prefixOk = true)
+        assertEquals(TypedLabel.YAHOO, yaho.target)
+        assertTrue("margin=${yaho.margin}", yaho.margin > 3f)
+        // "goog" is also the start of the competitor "googly": a tie, decided only by the
+        // lookalike prior (ln 10 ≈ 2.3) — well short of the early-flag bar.
+        val goog = spotter.score(obsFor(spotter, letters("goog"), 0.02f, Random(13)), prefixOk = true)
+        assertEquals(-kotlin.math.ln(WordSpotter.COMPETITOR_PRIOR), goog.margin, 0.2f)
+        assertTrue(goog.margin < spotter.threshold + QueryListener.EARLY_EXTRA_MARGIN)
+    }
+
+    private fun timed(obs: List<WordSpotter.Obs>, gapsMs: List<Long>): List<WordSpotter.Obs> {
+        var t = 1_000_000_000L
+        return obs.mapIndexed { i, o ->
+            if (i > 0) t += gapsMs[i - 1] * 1_000_000L
+            o.copy(tNs = t)
         }
+    }
+
+    @Test
+    fun doubleKeyTimingRewardsFastRepeatButNeverPenalizesHesitation() {
+        val model = oracleModel()
+        val off = WordSpotter(model, 3f)
+        val on = WordSpotter(model, 3f, WordSpotter.Weights(doubleKeyTiming = 1f))
+        val base = obsFor(off, letters("yahoo"), 0.02f, Random(17))
+        val fast = timed(base, listOf(250, 260, 240, 100)) // o→o much quicker than usual
+        val slow = timed(base, listOf(250, 260, 240, 900)) // hesitation before the second o
+        val gOff = off.score(fast).scores.getValue("yahoo")
+        val gFast = on.score(fast).scores.getValue("yahoo")
+        val gSlow = on.score(slow).scores.getValue("yahoo")
+        assertEquals(gOff + 1f, gFast, 1e-3f) // full one-nat bonus
+        assertEquals(off.score(slow).scores.getValue("yahoo"), gSlow, 1e-3f) // zero, not negative
+    }
+
+    @Test
+    fun thumbSideAgreementAddsEvidence() {
+        // Very uncertain x (σx = 3 keys): position barely knows the side; the thumb can tell.
+        val spotter = WordSpotter(oracleModel(sigmaX = 0.3f), 3f, WordSpotter.Weights(thumb = 1f))
+        val obs = obsFor(spotter, letters("yahoo"), 0.02f, Random(19))
+        val expected = obs.map { o -> o.copy(pRight = if (o.x > 0.5f) 0.9f else 0.1f) }
+        val flipped = obs.map { o -> o.copy(pRight = if (o.x > 0.5f) 0.1f else 0.9f) }
+        val a = spotter.score(expected).scores.getValue("yahoo")
+        val b = spotter.score(flipped).scores.getValue("yahoo")
+        assertTrue("matching=$a flipped=$b", a > b + 1f)
+    }
+
+    @Test
+    fun movementTermSurvivesGripOffset() {
+        // Every tap lands 1.5 keys right of where the model thinks (grip shift): absolute
+        // positions are off, but the steps between taps are still right.
+        val model = oracleModel(sigmaX = 0.12f, sigmaY = 0.2f, withMove = true)
+        val off = WordSpotter(model, 3f)
+        val on = WordSpotter(model, 3f, WordSpotter.Weights(movement = 1f))
+        val obs = obsFor(off, letters("yahoo"), 0.01f, Random(23)).map { o ->
+            val f = FloatArray(TapStream.FEATURE_DIM).also { it[0] = o.x + 0.15f; it[1] = o.y }
+            off.observe(f)
+        }
+        val without = off.score(obs).scores.getValue("yahoo")
+        val with = on.score(obs).scores.getValue("yahoo")
+        assertTrue("with=$with without=$without", with > without + 2f)
+        // A word with different steps does not get that boost.
+        assertTrue(on.score(obs).scores.getValue("youtube") < with)
+    }
+
+    // ---- Synthetic IMU → detector → trainer → held-out report --------------------------------
+
+    /**
+     * 200 Hz IMU with gravity and noise. Each touch adds an accel spike and a gyro twist whose
+     * axis/size depends on where it landed (pitch ∝ y, roll ∝ x) — the physical effect the
+     * real model learns. Two-thumb grip: yaw flips sign with the thumb (keyboard half), and
+     * double letters are typed faster than other pairs.
+     */
+    private fun synthTrial(id: String, text: String, rng: Random, pauseAfter: Int = -1, pauseMs: Long = 0L): Trial {
+        val keys = text.map { if (it == ' ') TouchLabel.KEY_SPACE else it.toString() } + TouchLabel.KEY_ENTER
+        val t0 = 1_000_000_000L
+        val touches = ArrayList<TouchLabel>()
+        var t = t0 + 400_000_000L
+        for (k in keys) {
+            val key = KeyboardLayout.key(k)!!
+            val x = key.cx + (rng.nextFloat() - 0.5f) * 0.04f
+            val y = key.cy + (rng.nextFloat() - 0.5f) * 0.06f
+            touches += TouchLabel(t, x, y, k)
+            t += 180_000_000L + rng.nextLong(140_000_000L)
+        }
+        // Double letters: the second press comes quickly.
+        for (i in 1 until touches.size) {
+            if (touches[i].key == touches[i - 1].key) {
+                val shift = touches[i].timestampNs - (touches[i - 1].timestampNs + 110_000_000L)
+                for (j in i until touches.size) touches[j] = touches[j].copy(timestampNs = touches[j].timestampNs - shift)
+            }
+        }
+        if (pauseAfter in 0 until touches.size - 1) {
+            for (j in pauseAfter + 1 until touches.size) {
+                touches[j] = touches[j].copy(timestampNs = touches[j].timestampNs + pauseMs * 1_000_000L)
+            }
+        }
+        t = touches.last().timestampNs
+        val end = t + 1_500_000_000L // quiet tail longer than any end-of-query pause
+        val samples = ArrayList<SensorSample>()
+        var ts = t0
+        while (ts < end) {
+            var ax = 0f; var ay = 6.9f; var az = 6.9f
+            var wx = 0f; var wy = 0f; var wz = 0f
+            for (touch in touches) {
+                val dt = (ts - touch.timestampNs) / 1e6f // ms
+                if (dt < 0f || dt > 250f) continue
+                val spike = exp(-dt / 12f)
+                val twist = (dt / 20f) * exp(1f - dt / 20f)
+                az -= 0.8f * spike
+                wx += 2.0f * (touch.y - 0.5f) * twist
+                wy += 2.5f * (touch.x - 0.5f) * twist
+                wz += (if (touch.x > 0.5f) 0.4f else -0.4f) * twist
+            }
+            fun n() = (rng.nextFloat() - 0.5f) * 0.03f
+            samples += SensorSample(ts, FloatArray3(ax + n(), ay + n(), az + n()), FloatArray3(wx + n(), wy + n(), wz + n()))
+            ts += 5_000_000L
+        }
+        return Trial(
+            id, text, TrialTask.TYPED_TAP, ClientRole.CLIENT_A, 0L, 0L, samples,
+            sessionTag = TapPositionModel.GRIP_TWO_THUMBS, touches = touches,
+        )
+    }
+
+    @Test
+    fun detectorFindsSyntheticTaps() {
+        val trial = synthTrial("d1", "yahoo", Random(21))
+        val (_, taps) = TapStream.scan(trial.samples)
+        val m = TapTrainer.match(trial.touches, taps.map { it.onsetNs })
+        assertEquals(trial.touches.size, m.pairs.size)
+        assertEquals(trial.touches.size, taps.size)
+        assertTrue(abs(m.offsetNs) < 20_000_000L)
+        assertEquals(TapStream.FEATURE_DIM, taps.first().features.size)
+    }
+
+    @Test
+    fun liveListenerFlagsAfterPause() {
+        val rng = Random(31)
+        val trials = (0 until 90).map { i ->
+            val text = when (i % 3) {
+                0 -> "google"
+                1 -> "yahoo"
+                else -> TypedWordBank.SEARCHES[i % TypedWordBank.SEARCHES.size]
+            }
+            synthTrial("trial-$i", text, rng)
+        }
+        val bundle = TapTrainer.train(trials)
+        val report = requireNotNull(bundle.report)
+        assertTrue("tapRecall=${report.tapRecall}", report.tapRecall > 0.9f)
+        assertTrue("rowAcc=${report.rowAccuracy}", report.rowAccuracy > 0.8f)
+        assertTrue("queryAcc=${report.queryAccuracy}", report.queryAccuracy > 0.8f)
+        assertTrue("scoreMs=${report.meanScoreMs}", report.meanScoreMs < 20f)
+        assertTrue(bundle.position.hasThumb)
+        assertTrue("thumbAcc=${report.thumbAccuracy}", report.thumbAccuracy > 0.85f)
+        assertEquals(6, report.ablation.size) // position, timing, thumb, movement, all, selected
+        assertNotNull(bundle.position.move)
+        assertTrue(report.ablation.all { it.testMacroF1.isFinite() })
+
+        // Same bundle through the streaming listener, as on the phone.
+        val events = ArrayList<QueryListener.Event>()
+        val listener = QueryListener(bundle) { events += it }
+        synthTrial("live", "google", Random(99)).samples.forEach { listener.offer(it) }
+        val flagged = events.filterIsInstance<QueryListener.Event.Scored>().filter { it.flagged }
+        assertEquals(TypedLabel.GOOGLE, flagged.single().result.label)
+        // Pause adapted to this typist (~3× a ~250 ms median gap).
+        assertTrue("gap=${listener.queryGapMs}", listener.queryGapMs in 600L..1000L)
+
+        // Hesitation after "goo" splits the query; carry-over still joins the word.
+        events.clear()
+        synthTrial("live2", "google", Random(98), pauseAfter = 2, pauseMs = 1_200L).samples
+            .forEach { listener.offer(it.copy(timestampNs = it.timestampNs + 60_000_000_000L)) } // a minute later
+        val scored = events.filterIsInstance<QueryListener.Event.Scored>()
+        assertTrue("queries=${scored.size}", scored.size >= 2)
+        val hit = scored.single { it.flagged }
+        assertEquals(TypedLabel.GOOGLE, hit.result.label)
+        assertTrue(hit.carried)
+
+        // Round-trips through JSON unchanged.
+        val back = TapModelStore.fromJson(TapModelStore.toJson(bundle))
+        assertEquals(bundle.threshold, back.threshold, 1e-6f)
+        assertEquals(bundle.position.wx.toList(), back.position.wx.toList())
+        assertEquals(bundle.position.wt.toList(), back.position.wt.toList())
+        assertEquals(bundle.weights, back.weights)
+        assertEquals(bundle.position.move!!.wdx.toList(), back.position.move!!.wdx.toList())
+        assertEquals(report.ablation, back.report!!.ablation)
     }
 }

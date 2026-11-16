@@ -6,6 +6,7 @@ import edu.iot.phoneangle.data.FloatArray3
 import edu.iot.phoneangle.data.FloatArray4
 import edu.iot.phoneangle.data.PhonePose
 import edu.iot.phoneangle.data.SensorSample
+import edu.iot.phoneangle.data.TouchLabel
 import edu.iot.phoneangle.data.Trial
 import edu.iot.phoneangle.data.TrialTask
 import org.json.JSONArray
@@ -101,6 +102,18 @@ class LocalDatasetStore(context: Context) {
         put("endedAtEpochMs", trial.endedAtEpochMs)
         put("notes", trial.notes)
         put("sessionTag", trial.sessionTag)
+        if (trial.touches.isNotEmpty()) {
+            put("touches", JSONArray().also { arr ->
+                trial.touches.forEach { t ->
+                    arr.put(JSONObject().apply {
+                        put("t", t.timestampNs)
+                        put("x", t.x.toDouble())
+                        put("y", t.y.toDouble())
+                        put("key", t.key)
+                    })
+                }
+            })
+        }
         put("samples", JSONArray().also { arr ->
             trial.samples.forEach { sample -> arr.put(sampleToJson(sample)) }
         })
@@ -130,6 +143,17 @@ class LocalDatasetStore(context: Context) {
         },
         notes = obj.optString("notes", ""),
         sessionTag = obj.optString("sessionTag", ""),
+        touches = obj.optJSONArray("touches")?.let { arr ->
+            List(arr.length()) { i ->
+                val t = arr.getJSONObject(i)
+                TouchLabel(
+                    timestampNs = t.getLong("t"),
+                    x = t.getDouble("x").toFloat(),
+                    y = t.getDouble("y").toFloat(),
+                    key = t.getString("key"),
+                )
+            }
+        }.orEmpty(),
     )
 
     companion object {

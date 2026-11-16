@@ -1,9 +1,9 @@
 package edu.iot.phoneangle.ml.typed
 
 /**
- * Classes for typed-word detection.
- * - Snipped (class project) model: [SNIPPED] = google / yahoo / other, one whole trial per word.
- * - Live model: [LIVE] adds [IDLE] (not typing / handling the phone).
+ * Classes for search-query spotting.
+ * - [SNIPPED] = google / yahoo / other: the per-query decision and its confusion matrix.
+ * - [IDLE] labels idle recordings (handling the phone, no typing) used to count false taps.
  */
 enum class TypedLabel(val id: String, val displayName: String) {
     GOOGLE("google", "google"),

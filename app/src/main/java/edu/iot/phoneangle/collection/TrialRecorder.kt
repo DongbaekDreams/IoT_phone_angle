@@ -2,10 +2,11 @@ package edu.iot.phoneangle.collection
 
 import edu.iot.phoneangle.data.ClientRole
 import edu.iot.phoneangle.data.SensorSample
+import edu.iot.phoneangle.data.TouchLabel
 import edu.iot.phoneangle.data.Trial
 import edu.iot.phoneangle.data.TrialTask
 import java.util.UUID
-import java.util.concurrent.CopyOnWriteArrayList
+import java.util.Collections
 
 /**
  * Starts/stops a labeled recording session and accumulates sensor samples.
@@ -37,12 +38,18 @@ class TrialRecorder {
             startedAtEpochMs = System.currentTimeMillis(),
             notes = notes,
             sessionTag = sessionTag,
-            samples = CopyOnWriteArrayList(),
+            // Synchronized lists, not copy-on-write: at 200 Hz COW would copy the whole trial per sample.
+            samples = Collections.synchronizedList(ArrayList()),
+            touches = Collections.synchronizedList(ArrayList()),
         )
     }
 
     fun offer(sample: SensorSample) {
         active?.samples?.add(sample)
+    }
+
+    fun offerTouch(touch: TouchLabel) {
+        active?.touches?.add(touch)
     }
 
     fun stop(): Trial {
@@ -55,9 +62,10 @@ class TrialRecorder {
             clientRole = current.clientRole,
             startedAtEpochMs = current.startedAtEpochMs,
             endedAtEpochMs = System.currentTimeMillis(),
-            samples = current.samples.toList(),
+            samples = synchronized(current.samples) { current.samples.toList() },
             notes = current.notes,
             sessionTag = current.sessionTag,
+            touches = synchronized(current.touches) { current.touches.toList() },
         )
     }
 
@@ -73,6 +81,7 @@ class TrialRecorder {
         val startedAtEpochMs: Long,
         val notes: String,
         val sessionTag: String,
-        val samples: CopyOnWriteArrayList<SensorSample>,
+        val samples: MutableList<SensorSample>,
+        val touches: MutableList<TouchLabel>,
     )
 }

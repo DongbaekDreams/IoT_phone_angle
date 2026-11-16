@@ -45,9 +45,12 @@ The top bar shows nationality + Class/Personal, sync mode and current global rou
 
 ### Typed words (extra credit, local)
 
-1. Collect → **Typed words** → record short trials of `google`, `yahoo`, and `other` (≥8 each).
-2. Model → **Train typed baseline** (with Collect still on Typed words).
-3. Collect → **Start listening** (or Model live switch) — sliding ~2.5s window alerts on google/yahoo.
+Home → **Extra credit** (details: [`docs/typed_word_pipeline.md`](docs/typed_word_pipeline.md)).
+
+1. **Search queries** → type each prompt on the training keyboard and tap search (≥20 queries; aim for ~20 google, ~20 yahoo, ~60 other). Set your grip in the top right.
+2. **Record idle** a few times (no typing) so false taps can be measured.
+3. **Train tap model** → held-out tap detection, key/row accuracy, query confusion matrix.
+4. **Live flagging** → type in the search box on your normal keyboard; pause, and google/yahoo get **Flagged**.
 
 Typed federation is not wired yet; Sync / Results remain pose-only.
 
