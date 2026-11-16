@@ -6,16 +6,16 @@
   "round": 0,
   "sampleCount": 16,
   "poseCounts": {
-    "screen_up": 7,
-    "screen_down": 3,
-    "portrait_up": 7,
-    "portrait_down": 4,
-    "landscape_left": 3,
-    "landscape_right": 3
+    "screen_up": 12,
+    "screen_down": 10,
+    "portrait_up": 12,
+    "portrait_down": 10,
+    "landscape_left": 10,
+    "landscape_right": 10
   },
   "sensorConfig": "all",
   "preprocessingVersion": 1,
-  "createdAtEpochMs": 1791670742765,
+  "createdAtEpochMs": 1791671897353,
   "contributors": [],
   "testAccuracy": 1,
   "featureDim": 22,
