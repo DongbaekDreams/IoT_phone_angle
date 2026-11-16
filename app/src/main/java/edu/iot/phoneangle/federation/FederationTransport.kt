@@ -52,7 +52,15 @@ interface FederationTransport {
 
     fun putBinding(binding: SlotBinding)
 
+    /** Typed-word tap model for one phone (weights / statistics only — see TypedFederation). */
+    fun putTypedModel(clientId: String, json: String): Unit = throw TransportException(TYPED_GIT_ONLY)
+
+    /** Every phone's shared typed-word model JSON. */
+    fun fetchTypedModels(): List<String> = throw TransportException(TYPED_GIT_ONLY)
+
     companion object {
+        const val TYPED_GIT_ONLY = "Typed-word federation uses the Git transport — switch to Git in Dev tools."
+
         fun create(settings: ProjectSettings): FederationTransport = when (settings.transportMode) {
             TransportMode.GIT -> GitHubTransport(
                 repo = settings.githubRepo,

@@ -141,4 +141,9 @@ class ProjectSettings(context: Context) {
             return s.trim('/')
         }
     }
+
+    /** Poses this phone trains on (see [PhoneIdentity.trainingPoses]). */
+    fun trainingPoses(): Set<edu.iot.phoneangle.data.PhonePose> = PhoneIdentity.trainingPoses(nationality, clientRole)
+
+    fun isTrainingPose(pose: edu.iot.phoneangle.data.PhonePose): Boolean = pose in trainingPoses()
 }

@@ -395,4 +395,7 @@
     <string name="search_saved_total">%1$d saved so far.</string>
     <string name="search_filter_hold_upright">Hold phone upright</string>
     <string name="ec_left_out_leaning_back">%1$d queries typed leaning back were left out (the model is tuned for upright typing).</string>
+    <string name="ec_federate">Share &amp; average with other phones</string>
+    <string name="ec_federate_blurb">Federated: uploads the model trained on this phone (weights only, never recordings or text) to the Git repo, averages the models of every phone, and keeps the calibration of this phone. A phone with no data gets the shared model.</string>
+    <string name="ec_federate_running">Sharing and averaging…</string>
 </resources>

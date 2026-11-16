@@ -1,6 +1,7 @@
 package edu.iot.phoneangle
 
 import edu.iot.phoneangle.data.ClientRole
+import edu.iot.phoneangle.data.PhonePose
 
 /**
  * Nationality labels for distinguishing who owns which phone, without putting real names
@@ -22,6 +23,20 @@ enum class Nationality(
 
 /** Maps a nationality + Class/Personal role to the stable federation client id. */
 object PhoneIdentity {
+    /**
+     * Poses this phone trains on (non-IID design): the two class phones split the six poses by
+     * nationality; personal phones train on all six as extra data. Everything else a phone
+     * records is evaluation-only.
+     */
+    fun trainingPoses(nationality: Nationality, role: ClientRole): Set<PhonePose> = when (role) {
+        ClientRole.CLIENT_A -> if (nationality == Nationality.CANADA) {
+            setOf(PhonePose.SCREEN_UP, PhonePose.SCREEN_DOWN, PhonePose.PORTRAIT_UP)
+        } else {
+            setOf(PhonePose.PORTRAIT_DOWN, PhonePose.LANDSCAPE_LEFT, PhonePose.LANDSCAPE_RIGHT)
+        }
+        ClientRole.CLIENT_B -> PhonePose.entries.toSet()
+    }
+
     fun clientId(nationality: Nationality, role: ClientRole): String =
         "${nationality.id}-${if (role == ClientRole.CLIENT_A) "class" else "personal"}"
 

@@ -8,6 +8,7 @@ import edu.iot.phoneangle.store.LocalDatasetStore
 class TapWorkflow(context: Context) {
     val dataset = LocalDatasetStore(context)
     val models = TapModelStore(context)
+    val localOnly = TapModelStore(context, TapModelStore.LOCAL_ONLY_FILE_NAME)
 
     data class Status(val perClass: Map<TypedLabel, Int>) {
         fun count(label: TypedLabel): Int = perClass[label] ?: 0
@@ -26,8 +27,28 @@ class TapWorkflow(context: Context) {
 
     fun train(save: Boolean = true): TapModelBundle {
         val bundle = TapTrainer.train(dataset.loadAll(TrialTask.TYPED_TAP))
-        if (save) models.save(bundle)
+        if (save) {
+            models.save(bundle)
+            localOnly.save(bundle)
+        }
         return bundle
+    }
+
+    /**
+     * Share this phone's own model (weights only), average every phone's (FedAvg, weighted by
+     * training taps), keep this phone's scaling / calibration / thresholds, and make that the
+     * active model. Blocking — call off the UI thread. Returns a one-line summary.
+     */
+    fun federate(transport: edu.iot.phoneangle.federation.FederationTransport, clientId: String): String {
+        // First sync on a phone trained before federation existed: its active model is still its own.
+        val own = localOnly.load() ?: models.load()?.also { localOnly.save(it) }
+        if (own != null) transport.putTypedModel(clientId, TypedFederation.shareable(own).toString())
+        val all = transport.fetchTypedModels().mapNotNull { runCatching { org.json.JSONObject(it) }.getOrNull() }
+        check(all.isNotEmpty()) { "No typed models shared yet — train on a phone first." }
+        val global = TypedFederation.localize(TypedFederation.average(all), own)
+        models.save(global)
+        return "Averaged ${all.size} phone(s), ${global.trainTaps} taps in total" +
+            if (own == null) " (no local data: using the shared model as-is)." else " (kept this phone's own calibration)."
     }
 
     companion object {

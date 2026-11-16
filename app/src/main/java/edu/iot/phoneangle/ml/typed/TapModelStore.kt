@@ -24,8 +24,8 @@ data class TapModelBundle(
     val featureMean: FloatArray? = null,
 )
 
-class TapModelStore(context: Context) {
-    private val file = File(File(context.filesDir, "models").also { it.mkdirs() }, FILE_NAME)
+class TapModelStore(context: Context, fileName: String = FILE_NAME) {
+    private val file = File(File(context.filesDir, "models").also { it.mkdirs() }, fileName)
 
     fun save(bundle: TapModelBundle) = file.writeText(toJson(bundle).toString(2))
 
@@ -38,6 +38,8 @@ class TapModelStore(context: Context) {
 
     companion object {
         const val FILE_NAME = "typed_tap_local.json"
+        /** This phone's own model (what it shares), separate from the active, possibly federated one. */
+        const val LOCAL_ONLY_FILE_NAME = "typed_tap_local_only.json"
         private const val KIND = "typed_tap_spotter"
 
         private fun FloatArray.json() = JSONArray().also { a -> forEach { a.put(it.toDouble()) } }

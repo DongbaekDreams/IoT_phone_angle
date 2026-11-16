@@ -180,6 +180,18 @@ class GitHubTransport(
 
     // --- repo layout -------------------------------------------------------------------
 
+    override fun putTypedModel(clientId: String, json: String) {
+        requireConfigured()
+        putFile("$TYPED_DIR/$clientId.json", json, "typed-word model from $clientId")
+    }
+
+    override fun fetchTypedModels(): List<String> {
+        requireConfigured()
+        return listNames(TYPED_DIR).filter { it.endsWith(".json") }.mapNotNull { getFile("$TYPED_DIR/$it")?.text }
+    }
+
+    private val TYPED_DIR = "federation/typed"
+
     private fun roundDir(round: Int) = "federation/rounds/%04d".format(round)
     private fun updatesDir(round: Int) = "${roundDir(round)}/updates"
     private fun globalPath(round: Int) = "${roundDir(round)}/global.json"

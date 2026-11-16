@@ -13,6 +13,12 @@ import edu.iot.phoneangle.store.LocalDatasetStore
  * - Baseline: from scratch, local data only, saved to [ModelSlot.LOCAL_BASELINE].
  * - Round-local: warm-started from the global model, saved to [ModelSlot.ROUND_LOCAL].
  * - Evaluation always uses this phone's stable held-out trials ([StableSplit]).
+ *
+ * Non-IID rule: a phone trains only on its [ProjectSettings.trainingPoses] — Canada's class phone
+ * on three poses, Peru's class phone on the other three, personal phones on all six (extra data).
+ * Anything else it records is evaluation-only, so each class phone's local model genuinely never
+ * sees half the problem and federation has something to add. Trials recorded under the other role
+ * (e.g. before the phone's identity was switched) are ignored.
  */
 class PoseWorkflow(context: Context) {
 
@@ -39,7 +45,7 @@ class PoseWorkflow(context: Context) {
     fun status(role: ClientRole = settings.clientRole): DataStatus {
         val counts = dataset.countByPose()
         val needed = PhonePose.entries.mapNotNull { pose ->
-            val want = if (role.isPrimary(pose)) MIN_PRIMARY else MIN_COVER
+            val want = if (pose in settings.trainingPoses()) MIN_PRIMARY else MIN_COVER
             val have = counts[pose] ?: 0
             if (have < want) pose to (want - have) else null
         }
@@ -49,10 +55,24 @@ class PoseWorkflow(context: Context) {
     fun examples(config: SensorConfig): List<LabeledExample> =
         Preprocessor(config).examplesFromTrials(dataset.loadAll(TrialTask.POSE))
 
+    /**
+     * Train = this role's primary-pose trials not in the stable holdout.
+     * Test = held-out primary trials + every cover (non-primary) trial, so all six poses are scored.
+     */
+    fun split(config: SensorConfig, role: ClientRole = settings.clientRole): Pair<List<LabeledExample>, List<LabeledExample>> {
+        val own = dataset.loadAll(TrialTask.POSE).filter { it.clientRole == role }
+        val (train, test) = own.partition { t ->
+            val pose = PhonePose.fromShortId(t.label)
+            pose != null && pose in settings.trainingPoses() && !StableSplit.isHoldout(t.id)
+        }
+        val prep = Preprocessor(config)
+        return prep.examplesFromTrials(train) to prep.examplesFromTrials(test)
+    }
+
     fun trainBaseline(config: SensorConfig, save: Boolean = true): TrainOutcome {
-        val (train, test) = StableSplit.split(examples(config))
+        val (train, test) = split(config)
         check(train.size >= MIN_TOTAL_EXAMPLES) {
-            "Need at least $MIN_TOTAL_EXAMPLES training trials (have ${train.size}). Record more poses."
+            "Need at least $MIN_TOTAL_EXAMPLES primary-pose training trials (have ${train.size}). Record more primary poses."
         }
         val result = LocalTrainer(BASELINE_TRAIN).train(train)
         val report = if (test.isNotEmpty()) Evaluator().evaluate(result.model, test) else null
@@ -77,7 +97,7 @@ class PoseWorkflow(context: Context) {
      */
     fun trainRoundLocal(global: PoseModelBundle?, fallbackConfig: SensorConfig): TrainOutcome {
         val config = global?.sensorConfig ?: fallbackConfig
-        val (train, test) = StableSplit.split(examples(config))
+        val (train, test) = split(config)
         check(train.size >= MIN_TOTAL_EXAMPLES) {
             "Need at least $MIN_TOTAL_EXAMPLES training trials (have ${train.size}). Record more poses."
         }
@@ -100,7 +120,7 @@ class PoseWorkflow(context: Context) {
 
     /** Evaluate [bundle] on this phone's held-out trials. Null if there are none. */
     fun evaluateHoldout(bundle: PoseModelBundle): EvaluationReport? {
-        val (_, test) = StableSplit.split(examples(bundle.sensorConfig))
+        val (_, test) = split(bundle.sensorConfig)
         if (test.isEmpty()) return null
         return Evaluator().evaluate(bundle.model, test)
     }

@@ -303,6 +303,20 @@ class TypedWordTest {
         assertEquals(TypedLabel.GOOGLE, hit.result.label)
         assertTrue(hit.carried)
 
+        // Federation: averaging a model with itself is a no-op; a second phone's weights pull the
+        // average by tap count; localizing keeps this phone's own scaling / calibration.
+        val shared = TypedFederation.shareable(bundle)
+        assertTrue(!shared.has("report"))
+        val same = TypedFederation.average(listOf(shared, shared))
+        assertEquals(bundle.position.wx[0], same.position.wx[0], 1e-4f)
+        val other = org.json.JSONObject(shared.toString()).put("bx", bundle.position.bx + 1.0).put("trainTaps", bundle.trainTaps * 3)
+        val avg = TypedFederation.average(listOf(shared, other))
+        assertEquals(bundle.position.bx + 0.75f, avg.position.bx, 1e-3f)
+        val mine = TypedFederation.localize(avg, bundle)
+        assertEquals(bundle.position.scaler.mu.toList(), mine.position.scaler.mu.toList())
+        assertEquals(bundle.threshold, mine.threshold, 1e-6f)
+        assertEquals(avg.position.bx, mine.position.bx, 1e-6f)
+
         // Round-trips through JSON unchanged.
         val back = TapModelStore.fromJson(TapModelStore.toJson(bundle))
         assertEquals(bundle.threshold, back.threshold, 1e-6f)

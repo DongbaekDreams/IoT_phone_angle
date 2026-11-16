@@ -107,7 +107,7 @@ class CollectFragment : Fragment(), Refreshable {
         }
         for (pose in PhonePose.entries) {
             val card = cards[pose] ?: continue
-            val primary = role.isPrimary(pose)
+            val primary = settings.isTrainingPose(pose)
             val n = status.perPose[pose] ?: 0
             card.poseCount.text = getString(
                 if (primary) R.string.collect_count_primary else R.string.collect_count_cover,
@@ -208,7 +208,7 @@ class CollectFragment : Fragment(), Refreshable {
             label = pose.shortId,
             task = TrialTask.POSE,
             clientRole = role,
-            notes = if (role.isPrimary(pose)) "primary" else "eval_cover",
+            notes = if (settings.isTrainingPose(pose)) "primary" else "eval_cover",
         )
         binding.recordingTitle.text = getString(R.string.collect_recording_title, pose.displayName)
         countdown = object : CountDownTimer(RECORD_MS, 50) {

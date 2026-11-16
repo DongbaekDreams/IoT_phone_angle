@@ -39,6 +39,7 @@ class ExtraCreditActivity : AppCompatActivity() {
             )
         }
         binding.ecTrainButton.setOnClickListener { runTraining() }
+        binding.ecFederateButton.setOnClickListener { runFederation() }
         binding.ecListenButton.setOnClickListener { open(TypedListenActivity::class.java) }
     }
 
@@ -155,6 +156,28 @@ class ExtraCreditActivity : AppCompatActivity() {
     private fun pct(v: Float): String = if (v.isFinite()) "%.0f%%".format(v * 100f) else "n/a"
     private fun num(v: Float): String = if (v.isFinite()) "%.2f".format(v) else "n/a"
     private fun f1(p: Float, r: Float): Float = if (p + r <= 0f) 0f else 2 * p * r / (p + r)
+
+    /** Share this phone's typed model and average with every other phone's (Git transport). */
+    private fun runFederation() {
+        if (!training.compareAndSet(false, true)) return
+        binding.ecFederateButton.isEnabled = false
+        binding.ecTrainProgress.isVisible = true
+        binding.ecFederateStatus.setText(R.string.ec_federate_running)
+        executor.execute {
+            val msg = runCatching {
+                val settings = ProjectSettings(this)
+                workflow.federate(edu.iot.phoneangle.federation.FederationTransport.create(settings), settings.clientId)
+            }.getOrElse { getString(R.string.model_train_failed, it.message ?: it.javaClass.simpleName) }
+            runOnUiThread {
+                training.set(false)
+                if (isFinishing) return@runOnUiThread
+                binding.ecFederateButton.isEnabled = true
+                binding.ecTrainProgress.isVisible = false
+                binding.ecFederateStatus.text = msg
+                refresh()
+            }
+        }
+    }
 
     private fun runTraining() {
         if (!training.compareAndSet(false, true)) return

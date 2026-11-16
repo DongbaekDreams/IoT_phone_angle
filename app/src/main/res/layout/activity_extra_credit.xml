@@ -164,6 +164,24 @@
                 android:indeterminate="true"
                 android:visibility="gone" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/ecFederateButton"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/ec_federate"
+                app:cornerRadius="12dp" />
+
+            <TextView
+                android:id="@+id/ecFederateStatus"
+                style="@style/Text.App.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/ec_federate_blurb"
+                android:textColor="@color/muted" />
+
             <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.App.Card"
                 android:layout_width="match_parent"
