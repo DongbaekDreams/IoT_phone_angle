@@ -33,7 +33,7 @@ RESULT_KEYS = {
     "createdAtEpochMs",
 }
 BINDING_KEYS = {
-    "schema", "type", "clientId", "nationality", "role", "deviceKey", "createdAtEpochMs",
+    "schema", "type", "clientId", "nationality", "role", "deviceKey", "createdAtEpochMs", "deviceModel",
 }
 FORBIDDEN_KEYS = {
     "samples", "sample", "trial", "trials", "timestampns",
@@ -239,6 +239,14 @@ def list_bindings(root: Path) -> list[dict[str, Any]]:
     return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(d.glob("*.json"))] if d.exists() else []
 
 
+def same_device(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """Same install key, or same hardware-model hash (phone reinstalled / built on another PC)."""
+    if a.get("deviceKey") == b.get("deviceKey"):
+        return True
+    model = a.get("deviceModel")
+    return bool(model) and model == b.get("deviceModel")
+
+
 def submit_binding(root: Path, payload: dict[str, Any]) -> None:
     check_keys(payload, BINDING_KEYS)
     if payload.get("type") != "binding":
@@ -246,8 +254,12 @@ def submit_binding(root: Path, payload: dict[str, Any]) -> None:
     client = safe_name(payload["clientId"])
     path = root / "results" / "bindings" / f"{client}.json"
     existing = read_json(path)
-    if existing is not None and existing.get("deviceKey") != payload.get("deviceKey"):
-        raise FedError(f"{client} is already filled by another phone", status=409)
+    if existing is not None and not same_device(existing, payload):
+        raise FedError(
+            f"{client} is already filled by another phone. If that is really this phone, delete "
+            f"results/bindings/{client}.json on the server and claim again.",
+            status=409,
+        )
     write_json(path, payload)
 
 

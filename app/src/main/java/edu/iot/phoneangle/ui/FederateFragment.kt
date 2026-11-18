@@ -230,7 +230,11 @@ class FederateFragment : Fragment(), Refreshable {
         AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.fed_aggregate_confirm_title, s.pendingRound))
             .setMessage(
-                getString(R.string.fed_aggregate_confirm_message, s.pendingClients.size, s.pendingClients.joinToString(", ")),
+                if (s.pendingClients.size < 2) {
+                    getString(R.string.fed_aggregate_confirm_single, s.pendingClients.joinToString(", "))
+                } else {
+                    getString(R.string.fed_aggregate_confirm_message, s.pendingClients.size, s.pendingClients.joinToString(", "))
+                },
             )
             .setPositiveButton(R.string.fed_aggregate_confirm_yes) { _, _ -> runAggregate() }
             .setNegativeButton(android.R.string.cancel, null)

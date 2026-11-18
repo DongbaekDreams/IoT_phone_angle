@@ -59,7 +59,7 @@ interface FederationTransport {
     fun fetchTypedModels(): List<String> = throw TransportException(TYPED_GIT_ONLY)
 
     companion object {
-        const val TYPED_GIT_ONLY = "Typed-word federation uses the Git transport — switch to Git in Dev tools."
+        const val TYPED_GIT_ONLY = "Typed-word federation uses the Git transport — switch to Git on the Sync tab."
 
         fun create(settings: ProjectSettings): FederationTransport = when (settings.transportMode) {
             TransportMode.GIT -> GitHubTransport(

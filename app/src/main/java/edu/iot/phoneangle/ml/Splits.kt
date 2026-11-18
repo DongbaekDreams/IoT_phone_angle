@@ -1,20 +1,24 @@
 package edu.iot.phoneangle.ml
 
+import edu.iot.phoneangle.data.Trial
+
 /**
  * Deterministic per-trial train/test assignment.
  *
- * Unlike a random shuffle, a trial's side of the split never changes as more data is collected,
- * so a model trained earlier cannot "see" trials that later land in the held-out set.
+ * Unlike a random shuffle, a trial's side of the split never changes as more data is collected
+ * (earlier trials keep their index within their label), so a model trained earlier cannot "see"
+ * trials that later land in the held-out set. Stratified by label, which guarantees every pose
+ * with at least 2 trials has held-out data.
  */
 object StableSplit {
-    /** ~25% of trials are held out: top 2 bits of the mixed hash are zero. */
-    fun isHoldout(trialId: String): Boolean {
-        val mixed = trialId.hashCode() * -1640531527 // golden-ratio multiplicative hash
-        return (mixed ushr 30) == 0
-    }
+    /** Within each label, trials in recording order; every 4th (index 1, 5, 9, ...) is held out. */
+    fun holdoutIds(trials: List<Trial>): Set<String> =
+        trials.groupBy { it.label }.values.flatMap { group ->
+            group.sortedWith(compareBy({ it.startedAtEpochMs }, { it.id }))
+                .filterIndexed { i, _ -> i % 4 == 1 }
+                .map { it.id }
+        }.toSet()
 
-    fun split(examples: List<LabeledExample>): Pair<List<LabeledExample>, List<LabeledExample>> {
-        val (test, train) = examples.partition { isHoldout(it.trialId) }
-        return train to test
-    }
+    /** How many of [n] trials of one label land in train. */
+    fun trainCount(n: Int): Int = n - (n + 2) / 4
 }

@@ -146,7 +146,8 @@ class MainShellActivity : AppCompatActivity(), ShellHost {
                     SlotStatus.MINE -> getString(R.string.slot_mine, slot.displayName)
                     SlotStatus.TAKEN -> getString(R.string.slot_taken, slot.displayName)
                 }
-                button.isEnabled = allowClaim && status == SlotStatus.EMPTY && !registry.isLocked
+                // MINE on an unlocked phone = this phone's own earlier claim (reinstall): claiming it again restores the lock.
+                button.isEnabled = allowClaim && !registry.isLocked && status != SlotStatus.TAKEN
                 button.setOnClickListener {
                     confirmClaim(slot, dialog)
                 }

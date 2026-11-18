@@ -1,6 +1,7 @@
 package edu.iot.phoneangle.federation
 
 import edu.iot.phoneangle.BindingCodec
+import edu.iot.phoneangle.IdentityRegistry
 import edu.iot.phoneangle.SlotBinding
 import org.json.JSONArray
 import org.json.JSONObject
@@ -36,7 +37,7 @@ class GitHubTransport(
         requireConfigured()
         val r = Http.request("GET", "$apiBase/repos/$repo", headers())
         when {
-            r.code == 401 -> throw TransportException("GitHub rejected the token (401). Check it in Dev tools.")
+            r.code == 401 -> throw TransportException("GitHub rejected the token (401). Check it on the Sync tab.")
             r.code == 404 -> throw TransportException("Repo $repo not found, or the token cannot see it.")
             !r.ok -> throw TransportException("GitHub error ${r.code}: ${apiMessage(r)}")
         }
@@ -171,9 +172,7 @@ class GitHubTransport(
         val path = "results/bindings/${binding.clientId}.json"
         getFile(path)?.text?.let { text ->
             val existing = BindingCodec.fromJson(JSONObject(text))
-            if (existing.deviceKey != binding.deviceKey) {
-                throw TransportException("${binding.slot.displayName} is already filled by another phone.")
-            }
+            if (!existing.sameDeviceAs(binding)) throw IdentityRegistry.slotTaken(binding)
         }
         putFile(path, BindingCodec.toJson(binding).toString(2), "bind ${binding.clientId}")
     }
@@ -211,7 +210,7 @@ class GitHubTransport(
     private class RemoteFile(val sha: String, val text: String)
 
     private fun requireConfigured() {
-        if (token.isBlank()) throw TransportException("No GitHub token set. Add one in Dev tools.")
+        if (token.isBlank()) throw TransportException("No GitHub token set. Add one on the Sync tab.")
         if (!repo.contains('/')) throw TransportException("GitHub repo must look like owner/repo.")
     }
 

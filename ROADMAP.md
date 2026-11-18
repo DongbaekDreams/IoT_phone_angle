@@ -9,7 +9,7 @@ Check items off as you finish them. Order matters — finish each gate before th
 ## 0 — Sensors / foundation
 
 - [x] Live orientation HUD (pitch / roll / yaw)
-- [x] App shell: Collect / Model / Federate / Compare tabs + Dev tools
+- [x] App shell: Home / Collect / Model / Sync / Results tabs + Dev tools
 - [x] `SensorCollector`, `TrialRecorder`, `LocalDatasetStore`
 - [x] Six poses + Class / Personal roles (course Client A / B) in the app
 
@@ -72,7 +72,8 @@ Check items off as you finish them. Order matters — finish each gate before th
 
 ## 6 — Federate typed-word + wrap-up
 
-- [ ] Federate typed-word tap-position weights (scaler stays local)
+- [x] Federate typed-word tap model (Git transport; scaler/calibration stay local)
+- [ ] Typed federation tried on two physical phones
 - [ ] Cross-device / robustness notes for demo
 - [ ] Phase 1 design report (~Oct 20)
 - [ ] Phase 2 report + `Sources` + in-class demo (~Dec 1–3)
@@ -84,9 +85,9 @@ Check items off as you finish them. Order matters — finish each gate before th
 - [ ] All phones installed (`./gradlew :app:installDebug`)
 - [ ] Each phone claims one slot (🇨🇦/🇵🇪 × Class/Personal); locked on device, synced via Git/LAN
 - [ ] Peru: use whichever phone(s) are available; unused Peru slot stays empty
-- [ ] Each phone: ≥ 3 trials of each primary pose, ≥ 1 of the others
+- [ ] Each phone: ≥ 10 trials of each primary pose, ≥ 4 of the others
 - [ ] Train local baseline on each phone; **Send update** (also publishes the baseline)
-- [ ] 2+ federated rounds; Compare tab → *Get peer baseline and global* → *Share my results*
+- [ ] 2+ federated rounds; Results tab → *Get peer baseline and global* → *Share my results*
 - [ ] Run all ablations and the generalization experiment; copy numbers into the report
 
 ## Final checklist

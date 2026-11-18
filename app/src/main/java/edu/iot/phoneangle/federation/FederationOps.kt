@@ -6,7 +6,6 @@ import edu.iot.phoneangle.ml.EvaluationReport
 import edu.iot.phoneangle.ml.ModelSlot
 import edu.iot.phoneangle.ml.PoseModelBundle
 import edu.iot.phoneangle.ml.PoseWorkflow
-import edu.iot.phoneangle.ml.SensorConfig
 
 /**
  * The federation round, step by step. Everything here is blocking; call from a background thread.
@@ -32,7 +31,7 @@ class FederationOps(context: Context) {
         val status = t.status()
         syncGlobalIfNewer(t, status)
         val global = models.load(ModelSlot.GLOBAL)
-        return workflow.trainRoundLocal(global, SensorConfig.ALL)
+        return workflow.trainRoundLocal(global, PoseWorkflow.DEFAULT_SENSOR_CONFIG)
     }
 
     // --- step 2 ------------------------------------------------------------------------
@@ -103,6 +102,7 @@ class FederationOps(context: Context) {
     /** Evaluate every saved model on this phone's held-out trials and upload only the metrics. */
     fun publishResults(t: FederationTransport): Int {
         val tags = workflow.dataset.sessionTags()
+        val own = workflow.ownTrials()
         var count = 0
         val kinds = listOf(
             ModelSlot.LOCAL_BASELINE to "local_baseline",
@@ -111,7 +111,7 @@ class FederationOps(context: Context) {
         )
         for ((slot, kind) in kinds) {
             val bundle = models.load(slot) ?: continue
-            val report = workflow.evaluateHoldout(bundle) ?: continue
+            val report = workflow.evaluateHoldout(bundle, own) ?: continue
             val label = if (slot == ModelSlot.PEER_BASELINE && bundle.sourceClientId.isNotBlank()) {
                 "$kind-${bundle.sourceClientId}"
             } else {
@@ -126,6 +126,11 @@ class FederationOps(context: Context) {
     // --- conversions -------------------------------------------------------------------
 
     private fun syncGlobalIfNewer(t: FederationTransport, status: RemoteStatus): PoseModelBundle? {
+        // Remote is behind us: the federation was reset. The remote is the source of truth.
+        if (status.latestGlobalRound < localGlobalRound()) {
+            models.delete(ModelSlot.GLOBAL)
+            models.delete(ModelSlot.ROUND_LOCAL)
+        }
         if (status.latestGlobalRound <= localGlobalRound()) return null
         val payload = t.fetchGlobal() ?: return null
         return saveGlobal(payload)
@@ -139,7 +144,7 @@ class FederationOps(context: Context) {
     }
 
     private fun poseCounts(): Map<String, Int> =
-        workflow.dataset.countByPose().mapKeys { it.key.shortId }
+        workflow.dataset.countByPose(settings.clientRole).mapKeys { it.key.shortId }
 
     fun toPayload(type: PayloadType, bundle: PoseModelBundle): ModelPayload = ModelPayload(
         type = type,

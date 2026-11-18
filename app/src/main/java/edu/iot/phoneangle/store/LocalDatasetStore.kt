@@ -27,7 +27,10 @@ class LocalDatasetStore(context: Context) {
     }
 
     fun loadAll(task: TrialTask? = null): List<Trial> {
-        return rootDir.listFiles { f -> f.extension == "json" }
+        // Skip other tasks from the file header so large 200 Hz typed recordings are never parsed for pose work.
+        return rootDir.listFiles { f ->
+            f.extension == "json" && (task == null || HEAD_TASK.find(head(f))?.groupValues?.get(1).let { it == null || it == task.id })
+        }
             ?.mapNotNull { file ->
                 runCatching { trialFromJson(JSONObject(file.readText())) }.getOrNull()
             }
@@ -43,15 +46,8 @@ class LocalDatasetStore(context: Context) {
     fun countByLabel(task: TrialTask): Map<String, Int> {
         val counts = linkedMapOf<String, Int>()
         val files = rootDir.listFiles { f -> f.extension == "json" } ?: return emptyMap()
-        val buf = ByteArray(1024)
         for (file in files) {
-            val head = runCatching {
-                file.inputStream().use { ins ->
-                    val n = ins.read(buf)
-                    if (n <= 0) return@use ""
-                    String(buf, 0, n)
-                }
-            }.getOrNull() ?: continue
+            val head = head(file)
             val taskId = HEAD_TASK.find(head)?.groupValues?.getOrNull(1) ?: continue
             if (taskId != task.id) continue
             val label = HEAD_LABEL.find(head)?.groupValues?.getOrNull(1) ?: continue
@@ -63,15 +59,8 @@ class LocalDatasetStore(context: Context) {
     fun countByPose(clientRole: ClientRole? = null): Map<PhonePose, Int> {
         val counts = PhonePose.entries.associateWith { 0 }.toMutableMap()
         val files = rootDir.listFiles { f -> f.extension == "json" } ?: return counts
-        val buf = ByteArray(1024)
         for (file in files) {
-            val head = runCatching {
-                file.inputStream().use { ins ->
-                    val n = ins.read(buf)
-                    if (n <= 0) return@use ""
-                    String(buf, 0, n)
-                }
-            }.getOrNull() ?: continue
+            val head = head(file)
             val taskId = HEAD_TASK.find(head)?.groupValues?.getOrNull(1) ?: continue
             if (taskId != TrialTask.POSE.id) continue
             if (clientRole != null) {
@@ -88,6 +77,15 @@ class LocalDatasetStore(context: Context) {
     /** Distinct non-empty session tags among pose trials, sorted. */
     fun sessionTags(task: TrialTask = TrialTask.POSE): List<String> =
         loadAll(task).map { it.sessionTag }.filter { it.isNotBlank() }.distinct().sorted()
+
+    /** First KB of a trial file (metadata is written before the sample array). */
+    private fun head(file: File): String = runCatching {
+        file.inputStream().use { ins ->
+            val buf = ByteArray(1024)
+            val n = ins.read(buf)
+            if (n <= 0) "" else String(buf, 0, n)
+        }
+    }.getOrDefault("")
 
     fun deleteAll() {
         rootDir.listFiles()?.forEach { it.delete() }

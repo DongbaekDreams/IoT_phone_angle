@@ -149,9 +149,10 @@
     <string name="model_train">Train local baseline</string>
     <string name="model_advanced_show">Advanced: sensor configuration</string>
     <string name="model_advanced_hide">Hide advanced</string>
-    <string name="model_sensor_config_help">Pick which sensors the model may use (ablation). Federation always uses all sensors.</string>
+    <string name="model_sensor_config_help">Pick which sensors the model may use (ablation). Federation uses all sensors, unless an existing global model was built with another setting.</string>
     <string name="model_status_none">No trials yet</string>
     <string name="model_status_few">%1$d trials, need at least %2$d</string>
+    <string name="model_status_few_pose">%1$d usable training trials of your ★ poses, need at least %2$d</string>
     <string name="model_status_ready">%1$d trials, ready to train</string>
     <string name="model_results_section">Held-out results</string>
     <string name="model_results_empty">No baseline trained yet.</string>
@@ -198,6 +199,7 @@
     <string name="fed_aggregate_button">Aggregate round now</string>
     <string name="fed_aggregate_confirm_title">Aggregate round %1$d?</string>
     <string name="fed_aggregate_confirm_message">%1$d update(s) received: %2$s.\n\nPhones that have not sent yet will have to train again for the next round. Wait for everyone first if you can.</string>
+    <string name="fed_aggregate_confirm_single">Only ONE update received (%1$s).\n\nThe "global" model would just be that phone\'s model, trained on half the poses — it will get the other half wrong, and the live test uses it by default. Wait for the other phone\'s update unless you are only testing.</string>
     <string name="fed_aggregate_confirm_yes">Aggregate now</string>
     <string name="fed_log_nothing_to_aggregate">No updates for round %1$d yet, nothing to aggregate.</string>
     <string name="fed_log_section">Activity</string>

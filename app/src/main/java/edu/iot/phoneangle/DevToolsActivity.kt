@@ -13,7 +13,7 @@ import java.util.concurrent.Executors
 
 /**
  * Rarely needed things: connection settings, HUD, experiments, and destructive resets.
- * Routine work lives on Home / Collect / Model / Sync / Results. Typed-word collection is on Collect.
+ * Routine work lives on Home / Collect / Model / Sync / Results. Typed-word work is under Extra credit.
  */
 class DevToolsActivity : AppCompatActivity() {
 

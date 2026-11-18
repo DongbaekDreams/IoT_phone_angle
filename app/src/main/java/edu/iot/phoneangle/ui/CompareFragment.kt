@@ -67,11 +67,21 @@ class CompareFragment : Fragment(), Refreshable {
         if (_binding == null) return
         binding.pullButton.isEnabled = !busy.get()
         binding.publishButton.isEnabled = !busy.get()
-
-        entries = listOf(ModelSlot.LOCAL_BASELINE, ModelSlot.PEER_BASELINE, ModelSlot.GLOBAL).map { slot ->
-            val bundle = ops.workflow.models.load(slot)
-            Entry(slot, bundle, bundle?.let { ops.workflow.evaluateHoldout(it) })
+        executor.execute {
+            val own = ops.workflow.ownTrials()
+            val loaded = listOf(ModelSlot.LOCAL_BASELINE, ModelSlot.PEER_BASELINE, ModelSlot.GLOBAL).map { slot ->
+                val bundle = ops.workflow.models.load(slot)
+                Entry(slot, bundle, bundle?.let { ops.workflow.evaluateHoldout(it, own) })
+            }
+            activity?.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                entries = loaded
+                renderEntries()
+            }
         }
+    }
+
+    private fun renderEntries() {
         binding.compareRows.removeAllViews()
         for (e in entries) {
             val row = ItemMetricRowBinding.inflate(layoutInflater, binding.compareRows, false)

@@ -75,26 +75,10 @@ enum class PhonePose(
 }
 
 /**
- * Non-IID split from the brief (Client A / Client B).
- * In the app we call them Class phone and Personal phone.
- * Each primarily trains on three poses; both still collect a little of all six for eval.
+ * Class phone / Personal phone (the brief's Client A / Client B). The role alone does not
+ * determine which poses a phone trains on — see PhoneIdentity.trainingPoses.
  */
 enum class ClientRole(val label: String) {
     CLIENT_A("Class phone"),
     CLIENT_B("Personal phone");
-
-    fun primaryPoses(): Set<PhonePose> = when (this) {
-        CLIENT_A -> setOf(
-            PhonePose.SCREEN_UP,
-            PhonePose.SCREEN_DOWN,
-            PhonePose.PORTRAIT_UP,
-        )
-        CLIENT_B -> setOf(
-            PhonePose.PORTRAIT_DOWN,
-            PhonePose.LANDSCAPE_LEFT,
-            PhonePose.LANDSCAPE_RIGHT,
-        )
-    }
-
-    fun isPrimary(pose: PhonePose): Boolean = pose in primaryPoses()
 }

@@ -1,5 +1,6 @@
 package edu.iot.phoneangle.ml.typed
 
+import edu.iot.phoneangle.federation.PrivacyGuard
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -23,13 +24,23 @@ object TypedFederation {
         "threshold", "sensitivity", "thumbWeight", "timingWeight", "movementWeight",
     )
 
-    /** JSON safe to upload: the model without its evaluation report. */
+    /** Every key an uploaded typed model may contain (weights and summary statistics only). */
+    val SHARE_KEYS = setOf(
+        "kind", "featureVersion", "featureNames", "trainedAtEpochMs", "trainTaps", "sensitivity", "threshold",
+        "thumbWeight", "timingWeight", "movementWeight", "featureMean", "detector",
+        "wx", "bx", "wy", "by", "wt", "bt", "move",
+        "scalerMu", "scalerSigma", "sigmaX", "sigmaY", "calX", "calY", "sameKey", "diffKey",
+    )
+    private val DETECTOR_KEYS = setOf("w", "b", "threshold")
+    private val MOVE_KEYS = setOf("wdx", "bdx", "wdy", "bdy", "sigmaDx", "sigmaDy", "calDx", "calDy")
+
+    /** JSON safe to upload: the model without its evaluation report, checked against an allowlist. */
     fun shareable(bundle: TapModelBundle): JSONObject {
         val o = TapModelStore.toJson(bundle)
         o.remove("report")
-        check(!o.toString().contains("\"samples\"") && !o.toString().contains("\"touches\"")) {
-            "Refusing to share: payload looks like raw data"
-        }
+        PrivacyGuard.check(o, SHARE_KEYS)
+        o.optJSONObject("detector")?.let { PrivacyGuard.check(it, DETECTOR_KEYS) }
+        o.optJSONObject("move")?.let { PrivacyGuard.check(it, MOVE_KEYS) }
         return o
     }
 

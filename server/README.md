@@ -8,10 +8,12 @@ File-backed LAN server. It stores state in the repo using the **same layout as t
 python server/fedavg_server.py [--port 8080] [--root <repo root>]
 ```
 
-Listens on `0.0.0.0:8080`. The Federate tab in **LAN** mode talks to it.
+Listens on `0.0.0.0:8080`. The Sync tab in **LAN** mode talks to it.
 
 - Emulator → host: app default `http://10.0.2.2:8080`
-- Physical phones on the same Wi-Fi: set the PC's LAN IP in **Dev tools**, e.g. `http://192.168.1.20:8080` (`ipconfig` shows it). Allow Python through the Windows firewall for private networks.
+- Physical phones on the same Wi-Fi: set the PC's LAN IP on the **Sync** tab, e.g. `http://192.168.1.20:8080` (`ipconfig` shows it). Allow Python through the Windows firewall for private networks.
+
+Note: typed-word federation is Git-only; the LAN transport does not carry typed models.
 
 ## API
 

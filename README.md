@@ -8,6 +8,21 @@ CSC 8223 — six-pose phone classification, local-first training, then FedAvg. R
 
 **Progress checklists:** [`ROADMAP.md`](ROADMAP.md)
 
+## Recent fixes (Carter)
+
+1. **Non-IID split** — Class and Personal phones of the same nationality now get complementary halves of the six poses (table below); before, Personal phones trained on all six and a same-nationality pair had no real A/B split.
+2. **One sensor config everywhere** — federation, the Model tab and the "save" step of the ablation run now share one setting, `PoseWorkflow.DEFAULT_SENSOR_CONFIG` (all 22 features, kept for a planned higher-precision stretch feature). Compare the other configs in Dev tools → Experiments. On phones without a gravity sensor the accelerometer stands in for the gravity features (accel ≈ gravity on a static hold). An existing global model keeps its own sensor config — start a fresh federation to change it.
+3. **Live test default** — the Model tab's live test now defaults to the global model once one exists (was: always the local baseline).
+4. **Holdout + readiness** — evaluation uses a stratified stable holdout (every 4th trial of each pose, by recording order) instead of a hash; readiness counts only this phone's role and usable training trials; minimums raised to 10 trials per primary pose / 4 per other pose.
+
+Second pass:
+
+5. **Federation reset recovery** — if the remote's round is lower than this phone's saved global (LAN `/reset`, or `federation/` deleted from the repo), the phone drops its stale global and round-local models and follows the remote. Before, it stayed stuck on "Run step 1 again" forever.
+6. **No more UI freezes from typed data** — pose evaluation skips other trial types by reading only the file header (the big 200 Hz typed recordings are never parsed), and the Model / Results tabs evaluate on a background thread.
+7. **Slot lock survives reinstalls** — claims also store a hash of the phone's hardware model, so a reinstalled phone, or one running a build from another computer, is recognised as the same phone and can claim its slot again. There is still no "release slot" button. Bindings made before this change have no model hash: if one blocks you, delete `results/bindings/<client>.json` from the sync repo (or the LAN server folder) and claim again.
+8. **Typed-model uploads are allowlisted** — typed models are checked key by key with the same `PrivacyGuard` as pose uploads, instead of a string search.
+9. **One-update aggregation warning** — aggregating with only one phone's update now shows an explicit warning that the "global" model would know only half the poses.
+
 ## Run the Android app
 
 1. Install [Android Studio](https://developer.android.com/studio).
@@ -21,10 +36,10 @@ CSC 8223 — six-pose phone classification, local-first training, then FedAvg. R
 | Tab | What it does |
 |-----|--------------|
 | **Home** | Checklist for this phone: claim slot → connect sync → collect → train → federate → compare. Next-step CTA jumps to the right place. |
-| **Collect** | **Poses** (main): tap a pose, flip during get-ready if needed, hold 2 s. **Typed words**: short trials (`google` / `yahoo` / `other`), then **Listen** for sliding-window spotting after training. |
-| **Model** | Train local baseline (pose or typed, depending on Collect toggle), held-out metrics, live test / listen. |
+| **Collect** | Pose trials only: tap a pose, flip during get-ready if needed, hold 2 s. Typed words live under Home → Extra credit. |
+| **Model** | Train the pose baseline (default: all 22 features), held-out metrics, live test — uses the global model once one exists. |
 | **Sync** | Connection (Git / LAN + URL / token + Test) and one federated round: **1 Train from global**, **2 Send update**, **3 Get new global** (+ Aggregate). |
-| **Results** | Local vs peer vs global on this phone's held-out trials. Pose only while typed ML is unfinished. |
+| **Results** | Local vs peer vs global on this phone's held-out trials. Pose only. |
 
 The top bar shows nationality + Class/Personal, sync mode and current global round. Flags are nationalities for privacy (who owns the phone), not rooms. **⋮ → Dev tools** holds extras (HUD, experiments, resets). Routine connection settings live on **Sync**.
 
@@ -38,7 +53,7 @@ The top bar shows nationality + Class/Personal, sync mode and current global rou
 
 1. **Home** → claim an empty slot (🇨🇦/🇵🇪 × Class/Personal). Claiming **locks that phone forever**.
 2. **Sync** → pick **Git** or **LAN**, fill token or server URL, **Test connection**.
-3. **Collect** → record primary poses + light cover of the other three.
+3. **Collect** → record ≥10 trials of each ★ primary pose and ≥4 of each other pose.
 4. **Model** → train local baseline.
 5. **Sync** → run federated rounds (below).
 6. **Results** → pull peer baseline and compare.
@@ -52,7 +67,7 @@ Home → **Extra credit** (details: [`docs/typed_word_pipeline.md`](docs/typed_w
 3. **Train tap model** → held-out tap detection, key/row accuracy, query confusion matrix.
 4. **Live flagging** → type in the search box on your normal keyboard; pause, and google/yahoo get **Flagged**.
 
-Typed federation is not wired yet; Sync / Results remain pose-only.
+The typed tap model can be federated from Extra credit → **Federate**, Git transport only (LAN not supported). Phones upload weights/statistics only to `federation/typed/<client>.json`; the average is weighted by training taps, and each phone keeps its own scaling, calibration and thresholds. Not yet tried on two physical phones.
 
 ## Two-phone federated round
 
@@ -63,7 +78,7 @@ Typed federation is not wired yet; Sync / Results remain pose-only.
 | 🇨🇦 Canada | `canada-class` | `canada-personal` |
 | 🇵🇪 Peru | `peru-class` | `peru-personal` (optional) |
 
-Class = course Client A (screen up/down, portrait up). Personal = course Client B (portrait down, landscapes).
+Class = course Client A, Personal = course Client B — but pose sets depend on nationality too (see Non-IID split below).
 
 On each phone after claiming:
 
@@ -101,8 +116,9 @@ Aggregation can run in the app (button) or on the laptop: `python tools/aggregat
 federation/latest.json                        {"round": N}
 federation/rounds/NNNN/updates/<client>.json  weights, sampleCount, per-pose trial counts, sensorConfig, ...
 federation/rounds/NNNN/global.json            aggregated model
+federation/typed/<client>.json                typed-word tap model (weights/statistics only)
 results/baselines/<client>-local.json         independent local-only model
-results/bindings/<deviceHash>.json            permanent phone → slot claims
+results/bindings/<client>.json                permanent phone → slot claims (install key + hardware-model hash)
 results/<client>/<timestamp>-<kind>.json      held-out metrics, confusion matrix
 ```
 
@@ -113,12 +129,14 @@ Raw trials are never uploaded.
 ```
 edu.iot.phoneangle/
   MainShellActivity, DevToolsActivity, ExperimentsActivity, MainActivity (HUD)
+  ExtraCreditActivity, TypedPlayActivity, TypedWordActivity, TypedListenActivity, IdentityBinding
   ui/            Home / Collect / Model / Federate(Sync) / Compare(Results), ChecklistState
   data/          PhonePose, Trial, SyntheticPoseData
   sensors/       SensorCollector
   collection/    TrialRecorder
   store/         LocalDatasetStore, ExperimentStore
   ml/            Preprocessor, Softmax, LocalTrainer, FedAvg, ModelStore (slots), PoseWorkflow, StableSplit
+  ml/typed/      tap detector, position model, word spotter, TypedFederation
   federation/    FederationTransport (LanServerTransport, GitHubTransport), Payloads (PrivacyGuard), Aggregator, FederationOps
 server/          fedavg_server.py, fedlib.py, test_federation.py
 tools/           aggregate_from_git.py
@@ -126,11 +144,14 @@ tools/           aggregate_from_git.py
 
 ## Non-IID split
 
-| Class phone (Client A) | Personal phone (Client B) |
-|------------------------|---------------------------|
-| Screen up, screen down, portrait up | Portrait down, landscape left, landscape right |
+| Slot | Training poses (★ primary) |
+|------|----------------------------|
+| canada-class | Screen up, screen down, portrait up |
+| canada-personal | Portrait down, landscape left, landscape right |
+| peru-class | Portrait down, landscape left, landscape right |
+| peru-personal | Screen up, screen down, portrait up |
 
-Each phone also records a few trials of the other poses so every model can be evaluated on all six.
+Each phone also records a few trials of the other poses so every model can be evaluated on all six. Any same-nationality pair, the two class phones, or all four phones together cover all six poses; canada-class + peru-personal (or canada-personal + peru-class) would duplicate the same half.
 
 ## Model slots (kept strictly separate)
 
@@ -139,7 +160,7 @@ Each phone also records a few trials of the other poses so every model can be ev
 - `global` — aggregated model from the federation.
 - `peer_baseline` — the other client's baseline, pulled for comparison.
 
-Evaluation always uses a stable hash-based holdout (~25% of trials), so a trial never switches between train and test as data grows.
+Evaluation always uses a stratified stable holdout — every 4th trial of each pose by recording order — so a trial never switches between train and test as data grows.
 
 ## Privacy
 
@@ -151,3 +172,5 @@ Trials stay under the app's private files. Payload types can only hold weights, 
 ./gradlew :app:testDebugUnitTest      # includes LAN (real Python server) and GitHub (fake API) round trips
 python -m unittest server/test_federation.py
 ```
+
+Results so far are from unit tests and synthetic data; two-phone runs on real collected data are still to do.

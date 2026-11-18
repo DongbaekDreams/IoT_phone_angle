@@ -44,7 +44,8 @@ class Preprocessor(
         val yStd = FloatArray(3)
         val rMean = FloatArray(4)
 
-        stats3(window.mapNotNull { it.gravity }, gMean, gStd)
+        val gravity = window.mapNotNull { it.gravity }
+        stats3(gravity.ifEmpty { window.mapNotNull { it.accel } }, gMean, gStd)
         stats3(window.mapNotNull { it.accel }, aMean, aStd)
         stats3(window.mapNotNull { it.gyro }, yMean, yStd)
         mean4(window.mapNotNull { it.rotationVector }, rMean)

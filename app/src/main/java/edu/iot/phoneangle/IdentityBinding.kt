@@ -1,6 +1,7 @@
 package edu.iot.phoneangle
 
 import android.content.Context
+import android.os.Build
 import android.provider.Settings
 import edu.iot.phoneangle.data.ClientRole
 import edu.iot.phoneangle.federation.FederationTransport
@@ -30,8 +31,14 @@ data class SlotBinding(
     val slot: IdentitySlot,
     val deviceKey: String,
     val createdAtEpochMs: Long = System.currentTimeMillis(),
+    /** Hash of the hardware model; survives reinstalls and differently signed builds, unlike [deviceKey]. */
+    val deviceModel: String = "",
 ) {
     val clientId: String get() = slot.clientId
+
+    /** Same physical phone: same install key, or same hardware model (after a reinstall / other build). */
+    fun sameDeviceAs(other: SlotBinding): Boolean =
+        deviceKey == other.deviceKey || (deviceModel.isNotBlank() && deviceModel == other.deviceModel)
 }
 
 enum class SlotStatus {
@@ -63,6 +70,8 @@ class IdentityRegistry(context: Context) {
         }
     }
 
+    val deviceModel: String = sha256("phone-angle-model|${Build.MANUFACTURER}|${Build.MODEL}|${Build.BOARD}").take(16)
+
     val isLocked: Boolean get() = prefs.getBoolean(KEY_LOCKED, false)
 
     fun myBinding(): SlotBinding? {
@@ -74,6 +83,7 @@ class IdentityRegistry(context: Context) {
             slot = IdentitySlot(nat, role),
             deviceKey = deviceKey,
             createdAtEpochMs = prefs.getLong(KEY_CLAIMED_AT, 0L),
+            deviceModel = deviceModel,
         )
     }
 
@@ -90,7 +100,7 @@ class IdentityRegistry(context: Context) {
             error("This phone is already bound to ${existing.slot.displayName}")
         }
 
-        val binding = SlotBinding(slot, deviceKey)
+        val binding = SlotBinding(slot, deviceKey, deviceModel = deviceModel)
         var note: String? = null
         if (transport != null) {
             try {
@@ -121,11 +131,12 @@ class IdentityRegistry(context: Context) {
 
     fun statuses(remote: List<SlotBinding>): Map<IdentitySlot, SlotStatus> {
         val mine = myBinding()
+        val me = SlotBinding(IdentitySlot.ALL.first(), deviceKey, deviceModel = deviceModel)
         val byId = remote.associateBy { it.clientId }
         return IdentitySlot.ALL.associateWith { slot ->
             when {
                 mine?.clientId == slot.clientId -> SlotStatus.MINE
-                byId[slot.clientId]?.deviceKey == deviceKey -> SlotStatus.MINE
+                mine == null && byId[slot.clientId]?.sameDeviceAs(me) == true -> SlotStatus.MINE
                 byId.containsKey(slot.clientId) -> SlotStatus.TAKEN
                 else -> SlotStatus.EMPTY
             }
@@ -134,11 +145,7 @@ class IdentityRegistry(context: Context) {
 
     private fun remoteClaim(transport: FederationTransport, binding: SlotBinding) {
         val existing = transport.fetchBindings().find { it.clientId == binding.clientId }
-        if (existing != null && existing.deviceKey != binding.deviceKey) {
-            throw TransportException(
-                "${binding.slot.displayName} is already filled by another phone.",
-            )
-        }
+        if (existing != null && !existing.sameDeviceAs(binding)) throw slotTaken(binding)
         transport.putBinding(binding)
     }
 
@@ -150,6 +157,12 @@ class IdentityRegistry(context: Context) {
         private const val KEY_ROLE = "role"
         private const val KEY_CLAIMED_AT = "claimed_at"
 
+        fun slotTaken(binding: SlotBinding) = TransportException(
+            "${binding.slot.displayName} is already filled by another phone. If that is really this phone " +
+                "(claimed before an update that added device recognition), delete results/bindings/${binding.clientId}.json " +
+                "from the sync repo (or LAN server folder) and claim again.",
+        )
+
         fun sha256(text: String): String {
             val digest = MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8))
             return digest.joinToString("") { "%02x".format(it) }
@@ -159,7 +172,7 @@ class IdentityRegistry(context: Context) {
 
 object BindingCodec {
     const val SCHEMA = 1
-    val KEYS = setOf("schema", "type", "clientId", "nationality", "role", "deviceKey", "createdAtEpochMs")
+    val KEYS = setOf("schema", "type", "clientId", "nationality", "role", "deviceKey", "createdAtEpochMs", "deviceModel")
 
     fun toJson(b: SlotBinding): JSONObject = JSONObject().apply {
         put("schema", SCHEMA)
@@ -169,6 +182,7 @@ object BindingCodec {
         put("role", b.slot.role.name)
         put("deviceKey", b.deviceKey)
         put("createdAtEpochMs", b.createdAtEpochMs)
+        if (b.deviceModel.isNotBlank()) put("deviceModel", b.deviceModel)
     }
 
     fun fromJson(obj: JSONObject): SlotBinding {
@@ -179,6 +193,7 @@ object BindingCodec {
             slot = IdentitySlot(nat, role),
             deviceKey = obj.getString("deviceKey"),
             createdAtEpochMs = obj.optLong("createdAtEpochMs", 0L),
+            deviceModel = obj.optString("deviceModel", ""),
         )
     }
 }

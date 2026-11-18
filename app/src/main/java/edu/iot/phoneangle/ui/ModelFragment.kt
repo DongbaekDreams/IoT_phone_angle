@@ -68,6 +68,9 @@ class ModelFragment : Fragment(), Refreshable {
             android.R.layout.simple_spinner_dropdown_item,
             SensorConfig.entries.map { it.displayName },
         )
+        binding.sensorConfigSpinner.setSelection(
+            SensorConfig.entries.indexOf(PoseWorkflow.DEFAULT_SENSOR_CONFIG),
+        )
         binding.advancedToggle.setOnClickListener {
             val show = !binding.advancedSection.isVisible
             binding.advancedSection.isVisible = show
@@ -83,7 +86,9 @@ class ModelFragment : Fragment(), Refreshable {
             binding.liveBars.addView(row.root)
             poseLiveRows[pose] = row
         }
-        binding.liveModelToggle.check(R.id.liveUseBaseline)
+        binding.liveModelToggle.check(
+            if (workflow.models.has(ModelSlot.GLOBAL)) R.id.liveUseGlobal else R.id.liveUseBaseline,
+        )
         binding.liveModelToggle.addOnButtonCheckedListener { _, _, isChecked ->
             if (isChecked) loadLiveModel()
         }
@@ -120,14 +125,16 @@ class ModelFragment : Fragment(), Refreshable {
         val status = workflow.status(role)
         binding.modelDataStatus.text = when {
             status.totalTrials == 0 -> getString(R.string.model_status_none)
-            !status.ready -> getString(R.string.model_status_few, status.totalTrials, PoseWorkflow.MIN_TOTAL_EXAMPLES)
+            !status.ready -> getString(R.string.model_status_few_pose, status.trainable, PoseWorkflow.MIN_TOTAL_EXAMPLES)
             else -> getString(R.string.model_status_ready, status.totalTrials)
         }
         val baseline = workflow.models.load(ModelSlot.LOCAL_BASELINE)
         if (baseline == null) showEmptyResults()
-        else {
+        else executor.execute {
             val report = workflow.evaluateHoldout(baseline)
-            renderPoseResults(baseline, report, baseline.trainSampleCount, report?.sampleCount ?: 0)
+            activity?.runOnUiThread {
+                if (_binding != null) renderPoseResults(baseline, report, baseline.trainSampleCount, report?.sampleCount ?: 0)
+            }
         }
         loadLiveModel()
     }

@@ -45,9 +45,12 @@ class ExperimentsActivity : AppCompatActivity() {
             android.R.layout.simple_spinner_dropdown_item,
             SensorConfig.entries.map { it.displayName },
         )
+        binding.sensorConfigSpinner.setSelection(
+            SensorConfig.entries.indexOf(PoseWorkflow.DEFAULT_SENSOR_CONFIG),
+        )
 
         binding.seedSyntheticButton.setOnClickListener {
-            val n = SyntheticPoseData.seedStore(dataset, settings.clientRole)
+            val n = SyntheticPoseData.seedStore(dataset, settings.clientRole, settings.trainingPoses())
             Toast.makeText(this, getString(R.string.exp_seeded, n), Toast.LENGTH_SHORT).show()
             refreshHistory()
         }
@@ -95,7 +98,7 @@ class ExperimentsActivity : AppCompatActivity() {
             val text = buildString {
                 try {
                     for (config in SensorConfig.entries) {
-                        val record = trainOne(config, saveModel = config == SensorConfig.ALL)
+                        val record = trainOne(config, saveModel = config == PoseWorkflow.DEFAULT_SENSOR_CONFIG)
                         experiments.save(record)
                         appendLine(record.titleLine())
                         appendLine("  macroF1=${"%.1f".format(record.macroF1 * 100)}%")

@@ -126,7 +126,8 @@ stay in memory.
   is just another tap.
 - Training labels come from the **in-app training keyboard** (`TapKeyboardView`, Play only):
   touch position + touch-down time on the sensor clock. These are labels only, never model input.
-- All data, training and inference stay on device. Typed models are not federated (yet, see §8).
+- All data, training and inference stay on device. Federation shares model weights/statistics
+  only (see §8).
 - Honest caveat for the report: a per-tap position model is the core of a motion keylogger. The
   design limits it to scoring a fixed blocklist and never emits a decoded string.
 
@@ -279,8 +280,11 @@ detection). Words are spotted from evidence accumulated over 5–6 taps, not fro
 ## 8. Next steps
 
 - Collect on both phones; report per-grip and cross-device results.
-- FedAvg of the tap-position weights (`wx, bx, wy, by` in `typed_tap_local.json`). The scaler and
-  σ stay local (FedBN-style). The spotter has no weights to share.
+- Typed federation is implemented (`TypedFederation`, Extra credit → **Federate**, Git transport
+  only): every numeric field of the model JSON is averaged, weighted by training taps. Scaler,
+  calibration, sigmas, thresholds and spotter weights stay local (FedBN-style — they absorb the
+  phone's hand / hold); a phone with no local data uses the averaged model as-is. Not yet tried
+  on two physical phones.
 - Optional: per-grip models using the gravity direction.
 
 ## 9. File map
@@ -291,6 +295,7 @@ detection). Words are spotted from evidence accumulated over 5–6 taps, not fro
 - `ml/typed/WordSpotter.kt`: keyword–filler alignment and flag decision
 - `ml/typed/QueryListener.kt`: live query segmentation + scoring
 - `ml/typed/TapTrainer.kt`, `TapWorkflow.kt`, `TapModelStore.kt`: training, evaluation, persistence
+- `ml/typed/TypedFederation.kt`: tap-count-weighted FedAvg over model JSON, local adaptation
 - `ml/typed/KeyboardLayout.kt`, `TypedWordBank.kt`, `TypedLabel.kt`
 - UI: `ExtraCreditActivity`, `TypedPlayActivity` + `ui/TapKeyboardView`, `TypedWordActivity` (idle),
   `TypedListenActivity`

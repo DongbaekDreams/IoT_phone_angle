@@ -24,18 +24,16 @@ enum class Nationality(
 /** Maps a nationality + Class/Personal role to the stable federation client id. */
 object PhoneIdentity {
     /**
-     * Poses this phone trains on (non-IID design): the two class phones split the six poses by
-     * nationality; personal phones train on all six as extra data. Everything else a phone
-     * records is evaluation-only.
+     * Poses this phone trains on (non-IID design): within each nationality the Class and
+     * Personal phones get complementary halves of the six poses, so a same-nationality pair
+     * covers all six. Everything else a phone records is evaluation-only.
      */
-    fun trainingPoses(nationality: Nationality, role: ClientRole): Set<PhonePose> = when (role) {
-        ClientRole.CLIENT_A -> if (nationality == Nationality.CANADA) {
+    fun trainingPoses(nationality: Nationality, role: ClientRole): Set<PhonePose> =
+        if ((nationality == Nationality.CANADA) == (role == ClientRole.CLIENT_A)) {
             setOf(PhonePose.SCREEN_UP, PhonePose.SCREEN_DOWN, PhonePose.PORTRAIT_UP)
         } else {
             setOf(PhonePose.PORTRAIT_DOWN, PhonePose.LANDSCAPE_LEFT, PhonePose.LANDSCAPE_RIGHT)
         }
-        ClientRole.CLIENT_B -> PhonePose.entries.toSet()
-    }
 
     fun clientId(nationality: Nationality, role: ClientRole): String =
         "${nationality.id}-${if (role == ClientRole.CLIENT_A) "class" else "personal"}"

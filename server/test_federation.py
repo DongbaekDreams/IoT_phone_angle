@@ -123,6 +123,21 @@ class ServerTest(unittest.TestCase):
         self.assertTrue((Path(self.tmp.name) / "results/client-a/5-global.json").exists())
 
 
+    def test_binding_recognises_same_phone_after_reinstall(self) -> None:
+        def binding(key: str, model: str | None) -> dict:
+            b = {"schema": 1, "type": "binding", "clientId": "canada-class", "nationality": "canada",
+                 "role": "CLIENT_A", "deviceKey": key, "createdAtEpochMs": 1}
+            if model:
+                b["deviceModel"] = model
+            return b
+
+        self.assertEqual(self.call("POST", "/binding", binding("key-1", "model-x"))[0], 200)
+        self.assertEqual(self.call("POST", "/binding", binding("key-2", "model-x"))[0], 200)  # reinstall
+        code, body = self.call("POST", "/binding", binding("key-3", "model-y"))  # different phone
+        self.assertEqual(code, 409, body)
+        self.assertIn("results/bindings/canada-class.json", body["error"])
+
+
 class AggregateFromGitTest(unittest.TestCase):
     def test_script_aggregates_files_on_disk(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

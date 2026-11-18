@@ -65,21 +65,22 @@ object SyntheticPoseData {
     fun seedStore(
         store: LocalDatasetStore,
         clientRole: ClientRole,
-        primaryPerPose: Int = 8,
-        coverPerPose: Int = 2,
+        trainingPoses: Set<PhonePose>,
+        primaryPerPose: Int = 12,
+        coverPerPose: Int = 4,
         seed: Long = 42L,
     ): Int {
         val rng = Random(seed)
         var count = 0
         for (pose in PhonePose.entries) {
-            val n = if (clientRole.isPrimary(pose)) primaryPerPose else coverPerPose
+            val n = if (pose in trainingPoses) primaryPerPose else coverPerPose
             repeat(n) {
                 store.save(
                     generateTrial(
                         pose = pose,
                         clientRole = clientRole,
                         seed = rng.nextLong(),
-                        notes = if (clientRole.isPrimary(pose)) "synthetic_primary" else "synthetic_cover",
+                        notes = if (pose in trainingPoses) "synthetic_primary" else "synthetic_cover",
                     ),
                 )
                 count++
